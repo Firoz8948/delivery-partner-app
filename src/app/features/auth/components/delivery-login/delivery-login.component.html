@@ -1,0 +1,139 @@
+<div class="auth-page">
+  <div class="auth-card auth-card--partner">
+
+    <div class="auth-logo">
+      <img src="assets/images/logo.svg" alt="LalganjEats">
+    </div>
+
+    <div class="auth-badge auth-badge--delivery">
+      <svg class="auth-badge__icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="1" y="3" width="15" height="13"/>
+        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/>
+        <circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+      <span>Delivery Partner</span>
+    </div>
+
+    <h1 class="auth-title">Delivery Partner Login</h1>
+    <p class="auth-subtitle">Accept orders, manage deliveries and track earnings</p>
+
+    <!-- Auth Mode Switcher Tabs -->
+    <div class="auth-tabs">
+      <button
+        type="button"
+        class="auth-tab"
+        [class.active]="mode() === 'password'"
+        (click)="setMode('password')">
+        Password Login
+      </button>
+      <button
+        type="button"
+        class="auth-tab"
+        [class.active]="mode() === 'otp'"
+        (click)="setMode('otp')">
+        OTP Login
+      </button>
+    </div>
+
+    @if (error()) {
+      <div class="auth-error">⚠️ {{ error() }}</div>
+    }
+
+    <!-- ── PASSWORD LOGIN TAB ── -->
+    @if (mode() === 'password') {
+      <div class="auth-form">
+        <div class="input-group">
+          <input
+            type="text"
+            placeholder="Username or mobile number"
+            [(ngModel)]="username"
+            (keyup.enter)="loginWithPassword()"
+          />
+        </div>
+        <div class="input-group">
+          <input
+            type="password"
+            placeholder="Password"
+            [(ngModel)]="password"
+            (keyup.enter)="loginWithPassword()"
+          />
+        </div>
+        <label class="legal-consent" [class.legal-consent--sealed]="acceptedLegal">
+          <input type="checkbox" [(ngModel)]="acceptedLegal">
+          <span class="legal-seal" aria-hidden="true">✓</span>
+          <span>
+            I accept the
+            <a routerLink="/legal/terms" target="_blank">Delivery Partner Terms</a>,
+            <a routerLink="/legal/privacy" target="_blank">Privacy Policy</a> and
+            <a routerLink="/legal/refund" target="_blank">Refund Policy</a>.
+          </span>
+        </label>
+        <button class="auth-btn" (click)="loginWithPassword()" [disabled]="loading()">
+          @if (loading()) { Logging in… } @else { Login }
+        </button>
+      </div>
+    }
+
+    <!-- ── OTP LOGIN TAB ── -->
+    @if (mode() === 'otp') {
+      @if (step() === 'phone') {
+        <div class="auth-form">
+          <div class="input-group">
+            <span class="input-prefix">+91</span>
+            <input
+              type="tel"
+              maxlength="10"
+              placeholder="Registered mobile number"
+              [(ngModel)]="phone"
+              (keyup.enter)="sendOTP()"
+            />
+          </div>
+          <button class="auth-btn" (click)="sendOTP()" [disabled]="loading()">
+            @if (loading()) { Sending… } @else { Send OTP }
+          </button>
+        </div>
+      }
+
+      @if (step() === 'otp') {
+        <div class="auth-form">
+          <p class="otp-sent-msg">
+            OTP sent to <strong>+91 {{ phone }}</strong>
+            <button type="button" class="change-link" (click)="goBack()">Change</button>
+          </p>
+          <div class="input-group">
+            <input
+              type="tel"
+              maxlength="6"
+              placeholder="Enter 6-digit OTP"
+              [(ngModel)]="otp"
+              (keyup.enter)="verifyOTP()"
+            />
+          </div>
+          <label class="legal-consent" [class.legal-consent--sealed]="acceptedLegal">
+            <input type="checkbox" [(ngModel)]="acceptedLegal">
+            <span class="legal-seal" aria-hidden="true">✓</span>
+            <span>
+              I accept the
+              <a routerLink="/legal/terms" target="_blank">Delivery Partner Terms</a>,
+              <a routerLink="/legal/privacy" target="_blank">Privacy Policy</a> and
+              <a routerLink="/legal/refund" target="_blank">Refund Policy</a>.
+            </span>
+          </label>
+          <button class="auth-btn" (click)="verifyOTP()" [disabled]="loading()">
+            @if (loading()) { Verifying… } @else { Verify & Login }
+          </button>
+          <button type="button" class="resend-link" (click)="resendOTP()">Resend OTP</button>
+        </div>
+      }
+    }
+
+  </div>
+</div>
+
+@if (contactDialogOpen()) {
+  <app-partner-contact-dialog
+    partnerLabel="Delivery partner"
+    (closed)="contactDialogOpen.set(false)" />
+}

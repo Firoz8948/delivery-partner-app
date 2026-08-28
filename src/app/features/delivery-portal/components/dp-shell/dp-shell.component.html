@@ -1,0 +1,32 @@
+<div class="dp-layout">
+  @if (impersonating()) {
+    <div class="impersonation-banner" role="status">
+      <span>Viewing <strong>{{ user?.full_name }}</strong> as admin</span>
+      <button type="button" (click)="exitImpersonation()">Return to Admin</button>
+    </div>
+  }
+  <header class="dp-top">
+    <div class="dp-top__brand">
+      <img src="assets/images/logo.svg" alt="LalganjEats" />
+      <span>Delivery</span>
+    </div>
+    <div class="dp-top__right">
+      <button type="button" class="online" [class.on]="isOnline()" (click)="toggleOnline()">
+        {{ isOnline() ? 'Online' : 'Offline' }}
+      </button>
+      <button type="button" class="logout" (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="dp-main">
+    <router-outlet></router-outlet>
+  </main>
+
+  <nav class="dp-bottom">
+    @for (item of bottomNav; track item.route) {
+      <a [routerLink]="item.route" [class.active]="isActive(item.route)">
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</div>

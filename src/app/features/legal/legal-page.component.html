@@ -1,0 +1,143 @@
+<div class="legal-page">
+  <header class="legal-topbar">
+    <a routerLink="/deliverypartner/home"><img src="assets/images/logo.svg" alt="LalganjEats"></a>
+    <a routerLink="/deliverypartner/home" class="back-home">Back to portal</a>
+  </header>
+
+  <nav class="legal-tabs" aria-label="Legal documents">
+    <a routerLink="/legal/terms" routerLinkActive="active">Terms</a>
+    <a routerLink="/legal/privacy" routerLinkActive="active">Privacy</a>
+    <a routerLink="/legal/refund" routerLinkActive="active">Returns & refunds</a>
+  </nav>
+
+  <main class="legal-document">
+    @if (document() === 'terms') {
+      <header class="document-hero">
+        <span>LEGAL · VERSION 2026-08-17</span>
+        <h1>Terms and Conditions</h1>
+        <p>Rules for customers, restaurant partners and delivery partners using LalganjEats.</p>
+      </header>
+
+      <section>
+        <h2>1. Agreement and eligibility</h2>
+        <p>By creating an account, signing in, accepting the consent seal or using LalganjEats, you agree to these Terms, the Privacy Policy and the Return, Cancellation and Refund Policy. You must provide accurate account and contact information and keep your account secure.</p>
+      </section>
+
+      <section>
+        <h2>2. Customer rules</h2>
+        <ul>
+          <li>Review the restaurant, items, address, delivery location, price and payment method before placing an order.</li>
+          <li>Once an order is placed it cannot ordinarily be cancelled, returned or exchanged because food preparation and delivery allocation begin immediately.</li>
+          <li>Remain reachable and cooperate with the restaurant, delivery partner and support team for delivery.</li>
+          <li>Do not submit false complaints, misuse promotions, refuse valid deliveries or initiate improper payment disputes.</li>
+          <li>If a customer refuses or deliberately rejects a valid order below ₹500, LalganjEats may investigate and an administrator may suspend or ban the account. A ban is not automatic and relevant circumstances will be reviewed.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. Restaurant partner rules</h2>
+        <ul>
+          <li>Maintain all required food, tax, safety and business registrations and follow applicable hygiene and food-safety laws.</li>
+          <li>Keep menus, prices, preparation times, availability, images and restaurant status accurate.</li>
+          <li>Prepare accepted orders safely, correctly and on time; use appropriate sealed packaging and immediately report unavailable items.</li>
+          <li>Do not manipulate orders, ratings, settlements, promotions or customer communications, and do not misuse customer information.</li>
+          <li>Review statements and cooperate promptly in settlement reconciliation, adjustments, refunds and lawful platform deductions.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Delivery partner rules</h2>
+        <ul>
+          <li>Maintain a valid licence, vehicle documents, insurance and any other legally required permissions.</li>
+          <li>Follow traffic laws, behave professionally, protect food from tampering and deliver only to the confirmed customer/location.</li>
+          <li>Keep availability and location information accurate while online and never falsify pickup, delivery, distance or payment status.</li>
+          <li>Safeguard cash collected on COD orders and remit or reconcile it exactly as directed.</li>
+          <li>Review earning statements and cooperate promptly in settlement reconciliation and investigations.</li>
+        </ul>
+      </section>
+
+      <section class="callout">
+        <h2>5. Settlement cooperation</h2>
+        <p>Customers, restaurants, delivery partners and administrators must cooperate honestly in payment and settlement checks. Restaurant and delivery partners must report discrepancies promptly, preserve supporting records and accept verified corrections. Fraud, concealment, refusal to reconcile or repeated non-cooperation may lead to withheld settlement, suspension or termination, subject to applicable law.</p>
+      </section>
+
+      <section>
+        <h2>6. Platform enforcement</h2>
+        <p>LalganjEats may warn, restrict, suspend or terminate accounts for fraud, unsafe conduct, repeated service failure, legal non-compliance or breach of these Terms. We may preserve records and cooperate with authorities where legally required.</p>
+      </section>
+
+      <section>
+        <h2>7. Service availability and liability</h2>
+        <p>Restaurant availability, preparation, weather, traffic, technical failures and events outside reasonable control may affect the service. Nothing in these Terms excludes rights or liabilities that cannot legally be excluded under Indian law.</p>
+      </section>
+    }
+
+    @if (document() === 'privacy') {
+      <header class="document-hero document-hero--privacy">
+        <span>PRIVACY · VERSION 2026-08-17</span>
+        <h1>Privacy Policy</h1>
+        <p>How LalganjEats collects, uses and protects personal information.</p>
+      </header>
+
+      <section>
+        <h2>Information we collect</h2>
+        <p>We may collect names, phone numbers, email addresses, delivery addresses, precise location when permitted, account role, restaurant or delivery profile details, order and payment references, device information, support communications and consent records.</p>
+      </section>
+      <section>
+        <h2>How we use information</h2>
+        <ul>
+          <li>Authenticate accounts and provide ordering, delivery, tracking and settlement services.</li>
+          <li>Share the minimum necessary information with the selected restaurant, assigned delivery partner and payment/service providers.</li>
+          <li>Prevent fraud, enforce policies, resolve disputes, improve service and comply with law.</li>
+          <li>Send transactional alerts and, where permitted, offers or service updates.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Location information</h2>
+        <p>Customer coordinates are used to check delivery coverage, calculate charges and support delivery. Delivery-partner location may be processed while online or handling an order for dispatch and tracking. Browser or device permissions can be changed, but some features may then be unavailable.</p>
+      </section>
+      <section>
+        <h2>Payments and retention</h2>
+        <p>Payment processing may be handled by authorised payment providers. LalganjEats does not intentionally store complete card credentials. Records are retained only as reasonably necessary for service, settlements, fraud prevention, tax, accounting and legal obligations.</p>
+      </section>
+      <section>
+        <h2>Your choices and security</h2>
+        <p>You may contact us to request correction or lawful deletion of personal information. We use reasonable safeguards, but no online system is completely risk-free. Never share OTPs or account credentials.</p>
+      </section>
+    }
+
+    @if (document() === 'refund') {
+      <header class="document-hero document-hero--refund">
+        <span>ORDERS · VERSION 2026-08-17</span>
+        <h1>Return, Cancellation and Refund Policy</h1>
+        <p>Food orders are prepared specifically for the customer and are time-sensitive.</p>
+      </header>
+
+      <section class="callout callout--warning">
+        <h2>Orders cannot be cancelled or returned after placement</h2>
+        <p>Once an order is confirmed on LalganjEats, preparation and delivery operations may begin immediately. Customers cannot ordinarily cancel, return or exchange the order because of a change of mind, an incorrect address entered by the customer, unavailability at delivery, refusal to accept delivery or preference/taste.</p>
+      </section>
+      <section>
+        <h2>When a refund may be reviewed</h2>
+        <p>A refund or adjustment may be considered after verification where the restaurant cannot fulfil the order, payment is duplicated, an online payment fails but is captured, the complete order is not delivered, or applicable law requires a remedy. Wrong, missing, materially damaged or unsafe items should be reported immediately with photographs or other requested evidence.</p>
+      </section>
+      <section>
+        <h2>Customer refusal and account action</h2>
+        <p>If a valid order below ₹500 is deliberately refused or rejected, the incident may be investigated. An administrator may restrict, suspend or ban the customer account after review. The customer may contact support to explain exceptional circumstances.</p>
+      </section>
+      <section>
+        <h2>Refund method and timing</h2>
+        <p>Approved refunds are normally returned to the original payment method. Processing times depend on banks and payment providers. COD orders generally have no prepaid amount to refund; any approved adjustment may be provided through another supported method.</p>
+      </section>
+      <section>
+        <h2>How to report an issue</h2>
+        <p>Contact LalganjEats as soon as possible at <a href="mailto:admin@lalganjeats.com">admin&#64;lalganjeats.com</a> or +91 97210 54930. Include the registered phone number, order reference and supporting evidence. This policy does not limit statutory consumer rights.</p>
+      </section>
+    }
+
+    <footer class="document-footer">
+      <p>Last updated: 17 August 2026</p>
+      <p>Contact: <a href="mailto:admin@lalganjeats.com">admin&#64;lalganjeats.com</a> · Lalganj Ajhara, Uttar Pradesh</p>
+    </footer>
+  </main>
+</div>

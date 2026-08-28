@@ -1,0 +1,178 @@
+<div class="earnings-page">
+
+  <app-portal-page-header eyebrow="PAYOUT LEDGER" title="Delivery Earnings" subtitle="Track earnings waiting for admin settlement and amounts already paid." tone="delivery" />
+
+  @if (successMsg) {
+    <div class="alert alert-success">{{ successMsg }}</div>
+  }
+  @if (errorMsg) {
+    <div class="alert alert-error">{{ errorMsg }}</div>
+  }
+
+  @if (loading) {
+    <div class="loading">Loading earnings...</div>
+  }
+
+  @if (!loading && summary) {
+    <div class="summary-cards">
+      <div class="card card-total">
+        <span class="label">Total Earned</span>
+        <span class="amount">₹{{ summary.total_earned | number:'1.2-2' }}</span>
+      </div>
+      <div class="card card-withdrawn">
+        <span class="label">Not Settled</span>
+        <span class="amount">₹{{ summary.unsettled_amount | number:'1.2-2' }}</span>
+      </div>
+      <div class="card card-available">
+        <span class="label">Settled</span>
+        <span class="amount">₹{{ summary.settled_amount | number:'1.2-2' }}</span>
+      </div>
+    </div>
+  }
+
+  <div class="section cash-clear-section">
+    <div class="section-title-row">
+      <h3>Collected cash</h3>
+    </div>
+    <p class="cash-clear-help">
+      Keep physical cash with you and pay the same amount online to clear it with the platform.
+    </p>
+    <div class="cash-clear-row">
+      <div>
+        <span class="label">Cash on hand</span>
+        <strong>₹{{ cashOnHand | number:'1.2-2' }}</strong>
+        @if (cashOrderCount > 0) {
+          <span class="muted"> · {{ cashOrderCount }} order{{ cashOrderCount === 1 ? '' : 's' }}</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="btn-primary"
+        [disabled]="cashOnHand <= 0 || clearingCash"
+        (click)="clearCollectedCash()">
+        {{ clearingCash ? 'Opening PayU…' : 'Clear collected cash' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title-row">
+      <h3>Bank Account</h3>
+      <button class="btn-outline" (click)="showBankForm = !showBankForm">
+        {{ showBankForm ? 'Cancel' : '+ Add Bank Account' }}
+      </button>
+    </div>
+
+    @if (showBankForm) {
+      <div class="bank-form">
+        <form [formGroup]="bankForm" (ngSubmit)="submitBankAccount()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Account Holder Name</label>
+              <input type="text" formControlName="account_holder_name" placeholder="Full name as in bank" />
+            </div>
+            <div class="form-group">
+              <label>Account Number</label>
+              <input type="text" formControlName="account_number" placeholder="Bank account number" />
+            </div>
+            <div class="form-group">
+              <label>IFSC Code</label>
+              <input type="text" formControlName="ifsc_code" placeholder="e.g. SBIN0001234" style="text-transform: uppercase" />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" [disabled]="bankForm.invalid || addingBank">
+            {{ addingBank ? 'Saving...' : 'Save Bank Account' }}
+          </button>
+        </form>
+      </div>
+    }
+
+    @if (bankAccounts.length > 0) {
+      <div class="bank-list">
+        @for (bank of bankAccounts; track bank.id) {
+          <div class="bank-item" [class.primary]="bank.is_primary">
+            <div class="bank-info">
+              <span class="bank-name">{{ bank.account_holder_name }}</span>
+              <span class="bank-acc">xxxx{{ bank.account_number.slice(-4) }}</span>
+              <span class="bank-ifsc">{{ bank.ifsc_code }}</span>
+            </div>
+            <div class="bank-badges">
+              @if (bank.is_primary) {
+                <span class="badge badge-primary">Primary</span>
+              }
+              @if (bank.is_verified) {
+                <span class="badge badge-verified">Verified</span>
+              } @else {
+                <span class="badge badge-pending">Pending KYC</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else if (!showBankForm) {
+      <div class="empty-state">
+        <p>No bank account added. Add one to withdraw earnings.</p>
+      </div>
+    }
+  </div>
+
+  <div class="section">
+    <h3>Withdrawal History</h3>
+    @if (withdrawalHistory.length > 0) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (w of withdrawalHistory; track w.id) {
+              <tr>
+                <td>{{ w.id }}</td>
+                <td>₹{{ w.amount | number:'1.2-2' }}</td>
+                <td><span class="status-badge" [ngClass]="getStatusClass(w.status)">{{ w.status }}</span></td>
+                <td>{{ w.created_at | date:'dd MMM yyyy, hh:mm a' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <p>No withdrawals yet.</p>
+      </div>
+    }
+  </div>
+
+</div>
+
+@if (showWithdrawModal) {
+  <div class="modal-overlay" (click)="showWithdrawModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>Request Withdrawal</h3>
+      <p class="modal-balance">Available: <strong>₹{{ summary?.available_balance | number:'1.2-2' }}</strong></p>
+
+      <form [formGroup]="withdrawForm" (ngSubmit)="submitWithdrawal()">
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" formControlName="amount"
+                 [max]="summary?.available_balance ?? null"
+                 placeholder="Enter amount" />
+        </div>
+        <p class="modal-bank">
+          Withdrawing to: <strong>xxxx{{ primaryBank?.account_number?.slice(-4) }}</strong>
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-outline" (click)="showWithdrawModal = false">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="withdrawForm.invalid || withdrawing">
+            {{ withdrawing ? 'Processing...' : 'Confirm Withdrawal' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

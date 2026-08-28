@@ -1,0 +1,117 @@
+.dp-layout {
+  min-height: 100vh;
+  background: #f6f6f6;
+  padding-bottom: 72px;
+}
+
+.impersonation-banner {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 16px;
+  background: #111;
+  color: #fff;
+  font-size: 13px;
+  animation: banner-in 180ms ease-out both;
+
+  button {
+    border: 1px solid rgba(255, 255, 255, .65);
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: #fff;
+    color: #111;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 100ms ease-out;
+
+    &:hover { transform: translateY(-1px); }
+  }
+}
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dp-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+
+    img { height: 28px; width: auto; }
+  }
+
+  &__right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .impersonation-banner { animation: none; }
+  .impersonation-banner button { transition: none; }
+}
+
+.online {
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 700;
+  background: #ddd;
+  cursor: pointer;
+  &.on { background: #1f9d55; color: #fff; }
+}
+
+.logout {
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.dp-main {
+  min-height: calc(100vh - 130px);
+}
+
+.dp-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #fff;
+  border-top: 1px solid #eee;
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+
+  a {
+    text-align: center;
+    text-decoration: none;
+    color: #777;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 4px;
+
+    &.active { color: #ff0000; }
+  }
+}

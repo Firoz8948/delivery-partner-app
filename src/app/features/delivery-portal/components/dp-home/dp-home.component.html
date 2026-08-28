@@ -1,0 +1,156 @@
+<div class="dp-home">
+  @if (data(); as d) {
+    <app-portal-page-header eyebrow="DELIVERY PARTNER" [title]="d.profile.full_name || 'Partner'" [subtitle]="'Today: ' + d.today.orders + ' orders - INR ' + (d.today.earnings | number:'1.0-0')" tone="delivery" />
+
+    <div class="hero-location-wrap">
+      @if (locationActive()) {
+        <div class="location-banner location-banner--on">
+          <span class="pulse-dot"></span>
+          <span class="location-text">
+            Your location is ON · Near <strong>{{ locationName() || 'Lalganj Sector' }}</strong>
+            @if (currentLat() != null && currentLng() != null) {
+              <span class="coords-pill">({{ currentLat() | number:'1.4-4' }}, {{ currentLng() | number:'1.4-4' }})</span>
+            }
+          </span>
+        </div>
+      } @else {
+        <div class="location-banner location-banner--off">
+          <span class="loc-icon">📍</span>
+          <div class="loc-off-info">
+            <strong>Live Location Required</strong>
+            <p>Turn on live location to receive nearby orders and navigate to customers.</p>
+          </div>
+          <button type="button" class="btn-enable-loc" [disabled]="requestingLocation()" (click)="requestLocationPermission()">
+            @if (requestingLocation()) {
+              <span class="btn-loc-spinner" aria-hidden="true"></span>
+              <span>Fetching GPS…</span>
+            } @else {
+              <span>⚡ Enable Live Location</span>
+            }
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (error()) {
+      <p class="err">{{ error() }}</p>
+    }
+
+    @if (d.active_order; as a) {
+      <section class="card">
+        <h2>Current order</h2>
+        <p class="oid">{{ a.order_number }} · {{ a.status }}</p>
+        <p>{{ a.restaurant }}</p>
+        <p class="muted">{{ a.delivery_address }}</p>
+        <p>
+          Collect: <strong>₹{{ a.customer_total }}</strong>
+          · Payout: <strong>₹{{ a.payout }}</strong>
+          @if (a.distance_km_to_restaurant != null) {
+            · {{ a.distance_km_to_restaurant }} km to restaurant
+          }
+        </p>
+        <p class="muted">
+          Payment:
+          @if (isPrepaid(a)) { Prepaid (already paid) }
+          @else { Collect at door · {{ a.payment_method || 'cash' }} }
+        </p>
+
+        @if (a.status === 'accepted' || a.status === 'ready') {
+          <app-dp-order-live-map
+            [destLat]="a.restaurant_lat"
+            [destLng]="a.restaurant_lng"
+            [destAddress]="a.restaurant_address || a.restaurant"
+            title="Restaurant Pickup Location">
+          </app-dp-order-live-map>
+          <p class="hint">Waiting for restaurant to mark Ready before pickup.</p>
+        }
+
+        @if (a.status === 'ready') {
+          <button type="button" class="primary" (click)="pickedUp(a)">Mark picked up</button>
+        }
+
+        @if (a.status === 'picked_up') {
+          <!-- Built-in live tracking map navigating from delivery partner live GPS to customer location -->
+          <app-dp-order-live-map
+            [destLat]="a.customer_lat"
+            [destLng]="a.customer_lng"
+            [destAddress]="a.delivery_address"
+            title="Customer Delivery Location">
+          </app-dp-order-live-map>
+          <div class="complete-box">
+            <h3>Hand over &amp; collect</h3>
+            <button type="button" class="secondary" (click)="sendOtp(a)">Send OTP to customer</button>
+            @if (lastDevOtp()) {
+              <p class="hint">Dev OTP: {{ lastDevOtp() }}</p>
+            }
+            <input class="otp-input" maxlength="6" placeholder="Enter customer OTP" [(ngModel)]="otp" />
+            @if (!otpVerified()) {
+              <button type="button" class="secondary" (click)="verifyOtp(a)">Verify OTP</button>
+            } @else {
+              <p class="ok">OTP verified</p>
+            }
+
+            @if (otpVerified()) {
+              @if (isPrepaid(a)) {
+                <p class="ok">Paid — customer already paid online.</p>
+              } @else {
+                <div class="pay-modes">
+                  <button type="button" class="ghost" (click)="setFullCash(a)">Cash</button>
+                  <button type="button" class="ghost" (click)="setFullOnline(a)">Pay online</button>
+                  <button type="button" class="ghost" (click)="setSplitHalf(a)">Cash / Online</button>
+                </div>
+                <div class="split-row">
+                  <label>Cash ₹
+                    <input type="number" min="0" [ngModel]="cashAmount" (ngModelChange)="onSplitChange(a, 'cash', $event)" />
+                  </label>
+                  <label>Online ₹
+                    <input type="number" min="0" [ngModel]="onlineAmount" (ngModelChange)="onSplitChange(a, 'online', $event)" />
+                  </label>
+                </div>
+                @if (onlineAmount > 0) {
+                  <button type="button" class="secondary" [disabled]="onlinePaid()" (click)="payOnlinePortion(a)">
+                    {{ onlinePaid() ? 'Online paid ✓' : 'Open scanner / pay ₹' + onlineAmount }}
+                  </button>
+                }
+              }
+
+              <button type="button" class="primary" [disabled]="!canComplete(a)" (click)="complete(a)">
+                Mark delivered
+              </button>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <section class="card">
+      <h2>New offers</h2>
+      @for (o of d.available_orders; track o.id) {
+        <div class="offer">
+          <div>
+            <strong>{{ o.order_number }}</strong>
+            <p>{{ o.restaurant }}</p>
+            <p class="muted">{{ o.delivery_address }}</p>
+            <p>
+              Payout ₹{{ o.payout }}
+              @if (o.distance_km_to_restaurant != null) {
+                · {{ o.distance_km_to_restaurant }} km away
+              }
+              @if (o.distance_km_restaurant_to_customer != null) {
+                · trip {{ o.distance_km_restaurant_to_customer }} km
+              }
+            </p>
+          </div>
+          <div class="row">
+            <button type="button" class="primary" [disabled]="busyId() === o.id" (click)="accept(o)">Accept</button>
+            <button type="button" class="ghost" [disabled]="busyId() === o.id" (click)="reject(o)">Reject</button>
+          </div>
+        </div>
+      } @empty {
+        <p class="muted">No offers right now. Stay online near restaurants.</p>
+      }
+    </section>
+  } @else {
+    <p class="muted">Loading…</p>
+  }
+</div>

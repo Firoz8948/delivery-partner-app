@@ -1,0 +1,39 @@
+<div class="dp-map-card">
+  <div class="dp-map-header">
+    <div class="title-wrap">
+      <span class="pulse-dot"></span>
+      <div>
+        <h4 class="map-title">{{ title }} Navigation</h4>
+        <p class="map-status">{{ locationStatus() }}</p>
+      </div>
+    </div>
+    @if (distanceKm() != null) {
+      <div class="dist-badge">
+        <span class="dist-val">{{ distanceKm() }} km</span>
+        <span class="dist-lbl">away</span>
+      </div>
+    }
+  </div>
+
+  <div class="map-wrapper">
+    <div #mapContainer class="google-map"></div>
+
+    @if (!mapLoaded()) {
+      <div class="map-overlay">
+        <div class="spinner"></div>
+        <p>Loading Live Map…</p>
+      </div>
+    }
+  </div>
+
+  <div class="dp-map-footer">
+    @if (destAddress) {
+      <p class="dest-addr">📍 {{ destAddress }}</p>
+    }
+    @if (destLat != null && destLng != null) {
+      <button type="button" class="btn-external-nav" (click)="openGoogleMapsNav()">
+        🗺 Open Turn-by-Turn GPS Directions
+      </button>
+    }
+  </div>
+</div>

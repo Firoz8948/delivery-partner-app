@@ -1,0 +1,10 @@
+<header class="portal-page-header" [class]="'portal-page-header portal-page-header--' + tone">
+  <div class="portal-page-header__copy">
+    <span class="portal-page-header__eyebrow">{{ eyebrow }}</span>
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+  </div>
+  <div class="portal-page-header__actions">
+    <ng-content />
+  </div>
+</header>

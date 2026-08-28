@@ -1,0 +1,32 @@
+<div class="contact-dialog" role="dialog" aria-modal="true" aria-labelledby="contact-dialog-title">
+  <button
+    type="button"
+    class="contact-dialog__backdrop"
+    aria-label="Close contact dialog"
+    (click)="closed.emit()"></button>
+
+  <section class="contact-dialog__panel">
+    <button type="button" class="contact-dialog__close" aria-label="Close" (click)="closed.emit()">×</button>
+    <div class="contact-dialog__icon" aria-hidden="true">☎</div>
+    <span class="contact-dialog__eyebrow">LIST WITH LALGANJEATS</span>
+    <h2 id="contact-dialog-title">No registered {{ partnerLabel.toLowerCase() }} on this number</h2>
+    <p>Your account must first be created by a tenant admin. Contact our team to get listed.</p>
+
+    <div class="contact-dialog__actions">
+      <a href="tel:+919721054930">
+        <small>Call</small>
+        <strong>+91 97210 54930</strong>
+      </a>
+      <a href="tel:+919670517135">
+        <small>Alternate</small>
+        <strong>+91 96705 17135</strong>
+      </a>
+      <a href="mailto:admin@lalganjeats.com" class="contact-dialog__email">
+        <small>Email</small>
+        <strong>admin&#64;lalganjeats.com</strong>
+      </a>
+    </div>
+
+    <button type="button" class="contact-dialog__done" (click)="closed.emit()">Close</button>
+  </section>
+</div>

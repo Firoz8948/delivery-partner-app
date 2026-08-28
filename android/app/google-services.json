@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "583032959185",
+    "project_id": "lalganjeats",
+    "storage_bucket": "lalganjeats.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583032959185:android:fb4642cc81be89759915f0",
+        "android_client_info": {
+          "package_name": "com.lalganjeats.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATM3m4HKl6WYSab3qlvvpnC9SBKWpnKzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583032959185:android:f33db20b0f98c0c49915f0",
+        "android_client_info": {
+          "package_name": "com.lalganjeats.deliverypartner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATM3m4HKl6WYSab3qlvvpnC9SBKWpnKzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583032959185:android:ba66382ccd5499f89915f0",
+        "android_client_info": {
+          "package_name": "com.lalganjeats.hotelpartner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATM3m4HKl6WYSab3qlvvpnC9SBKWpnKzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

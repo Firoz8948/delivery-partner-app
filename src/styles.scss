@@ -1,0 +1,148 @@
+// frontend/src/styles.scss
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Red palette (dark → bright)
+     #960000  primary-dark / hover
+     #ae0000  primary-deep
+     #c70000  warning
+     #e10000  primary-mid (gradients / accents)
+     #ff0000  primary
+  */
+  --color-bg:               #FAF5EF;
+  --color-primary:          #ff0000;
+  --color-primary-mid:      #e10000;
+  --color-primary-deep:     #ae0000;
+  --color-primary-dark:     #960000;
+  --color-text:             #2D2D2D;
+  --color-muted:            #5C5C5C;
+  --color-white:            #FFFFFF;
+  --color-border:           #E8E0D8;
+  --color-card-bg:          #FFFFFF;
+  --color-success:          #2ECC71;
+  --color-warning:          #c70000;
+  --color-primary-soft:      #FFF0F0;
+  --color-primary-soft-2:    #FFECEC;
+  --color-primary-border:   #ffc0c0;
+
+  --font-family:            'Inter', sans-serif;
+
+  --radius-sm:              8px;
+  --radius-md:              12px;
+  --radius-lg:              16px;
+  --radius-xl:              24px;
+
+  --shadow-sm:              0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md:              0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg:              0 8px 32px rgba(0,0,0,0.14);
+
+  --transition:             all 0.25s ease;
+
+  --navbar-height:          68px;
+
+  // ✅ FIXED: mobile header has 3 rows — must be tall enough
+  --mobile-header-height:   136px;
+  --bottom-nav-height:      64px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a   { text-decoration: none; color: inherit; }
+ul, ol { list-style: none; }
+img { max-width: 100%; display: block; }
+button { cursor: pointer; border: none; outline: none; font-family: var(--font-family); }
+input  { font-family: var(--font-family); outline: none; border: none; }
+
+// Suppress the browser's double-tap-to-zoom gesture on tappable elements.
+a, button, input, select, textarea, label, [role='button'] {
+  touch-action: manipulation;
+}
+
+// iOS zooms the whole page when a focused field is under 16px. Enforcing 16px
+// on touch layouts keeps the viewport stable while the keyboard is open.
+@media (max-width: 900px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: var(--transition);
+  &:hover {
+    background: var(--color-primary-dark);
+    transform: translateY(-1px);
+  }
+  &:active { transform: translateY(0); }
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: var(--transition);
+  &:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+  }
+}
+
+// ✅ FIXED: page-content uses correct heights per breakpoint
+.page-content {
+  padding-top: var(--navbar-height);
+
+  @media (max-width: 768px) {
+    padding-top: var(--mobile-header-height);
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+}
+
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+  &:hover { background: var(--color-muted); }
+}
