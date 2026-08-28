@@ -196,11 +196,21 @@ export class AuthService {
     this.currentUser.set(updated);
   }
 
-  // ── Session ───────────────────────────────────────────
   saveSession(user: AuthUser) {
     localStorage.setItem('le_user',  JSON.stringify(user));
     localStorage.setItem('le_token', user.access_token);
     this.currentUser.set(user);
+  }
+
+  saveTokenDirectly(token: string, role = 'delivery_partner'): void {
+    const user: AuthUser = {
+      access_token: token,
+      role: role,
+      user_id: 0,
+      full_name: 'Delivery Partner',
+      redirect_to: '/deliverypartner/home',
+    };
+    this.saveSession(user);
   }
 
   logout() {

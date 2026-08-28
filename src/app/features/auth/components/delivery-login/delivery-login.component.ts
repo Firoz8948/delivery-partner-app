@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { PartnerContactDialogComponent } from '../partner-contact-dialog/partner-contact-dialog.component';
 
@@ -34,9 +34,21 @@ export class DeliveryLoginComponent {
 
   readonly ROLE = 'delivery_partner';
 
-  constructor(private auth: AuthService, private router: Router) {
+  constructor(
+    private auth: AuthService,
+    private router: Router,
+    private route: ActivatedRoute,
+  ) {
+    this.route.queryParams.subscribe((params) => {
+      const token = params['impersonate_token'] || params['token'];
+      if (token) {
+        this.auth.saveTokenDirectly(token, 'delivery_partner');
+        this.router.navigate(['/deliverypartner/home']);
+      }
+    });
+
     if (this.auth.hasRole('delivery_partner')) {
-      this.router.navigate(['/deliverypartner']);
+      this.router.navigate(['/deliverypartner/home']);
     }
   }
 
