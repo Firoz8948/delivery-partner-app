@@ -43,7 +43,10 @@
             android:resource="@color/notification_color" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="lalganjeats_orders" />
+            android:value="lalganjeats_urgent_orders" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_sound"
+            android:resource="@raw/order_alert" />
     </application>
 
     <!-- Permissions -->

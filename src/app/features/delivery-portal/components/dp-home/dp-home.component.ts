@@ -3,6 +3,7 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { QRCodeComponent } from 'angularx-qrcode';
 import {
   DeliveryPortalService,
   DpDashboard,
@@ -18,7 +19,13 @@ import { DpOrderLiveMapComponent } from '../dp-order-live-map/dp-order-live-map.
 @Component({
   selector: 'app-dp-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, PortalPageHeaderComponent, DpOrderLiveMapComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PortalPageHeaderComponent,
+    DpOrderLiveMapComponent,
+    QRCodeComponent,
+  ],
   templateUrl: './dp-home.component.html',
   styleUrl: './dp-home.component.scss',
 })
@@ -41,9 +48,16 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   cashAmount = 0;
   onlineAmount = 0;
   onlinePaid = signal(false);
-  razorpayOrderId = '';
-  razorpayPaymentId = '';
-  razorpaySignature = '';
+
+  // UPI/QR collection state
+  qrModalOpen = signal(false);
+  qrLoading = signal(false);
+  qrCodeUrl = signal<string | null>(null);
+  qrTxnId = signal<string>('');
+  qrCheckingStatus = signal(false);
+  qrError = signal<string>('');
+  private qrPoll?: ReturnType<typeof setInterval>;
+  private qrOrderId: number | null = null;
 
   // Live Location Signals for Hero Banner
   currentLat = signal<number | null>(null);
@@ -67,6 +81,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.poll) clearInterval(this.poll);
+    if (this.qrPoll) clearInterval(this.qrPoll);
     if (this.geoWatch != null && navigator.geolocation) {
       navigator.geolocation.clearWatch(this.geoWatch);
     }
@@ -356,29 +371,72 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     this.onlinePaid.set(false);
   }
 
-  payOnlinePortion(a: DpOrder) {
+  /** Whether payment collection has reached a completable state. */
+  paymentReady(a: DpOrder): boolean {
+    if (this.isPrepaid(a)) return true;
+    const total = a.customer_total;
+    const sum = (this.cashAmount || 0) + (this.onlineAmount || 0);
+    if (Math.abs(sum - total) > 0.01) return false;
+    if (this.onlineAmount > 0 && !this.onlinePaid()) return false;
+    return true;
+  }
+
+  /** Ask backend for a PayU-hosted UPI URL, show QR modal, then poll for success. */
+  openUpiQr(a: DpOrder) {
     if (this.onlineAmount <= 0) return;
-    this.busyId.set(a.id);
-    this.api.createCollectionPayment(a.id, this.onlineAmount).subscribe({
-      next: (pay) => {
-        this.busyId.set(null);
-        this.api.openCollectionCheckout(
-          pay,
-          (resp) => {
-            this.razorpayOrderId = resp.razorpay_order_id;
-            this.razorpayPaymentId = resp.razorpay_payment_id;
-            this.razorpaySignature = resp.razorpay_signature;
-            this.onlinePaid.set(true);
-          },
-          () => {
-            this.error.set('Online payment was cancelled or failed.');
-          }
-        );
+    if (this.qrLoading()) return;
+
+    this.qrError.set('');
+    this.qrCodeUrl.set(null);
+    this.qrTxnId.set('');
+    this.qrOrderId = a.id;
+    this.qrLoading.set(true);
+    this.qrModalOpen.set(true);
+
+    this.api.initiateOnlineCollection(a.id, this.onlineAmount).subscribe({
+      next: (res) => {
+        this.qrLoading.set(false);
+        this.qrCodeUrl.set(res.qr_url);
+        this.qrTxnId.set(res.txnid);
+        this.startQrPolling(a.id, res.txnid);
       },
       error: (e) => {
-        this.busyId.set(null);
-        this.error.set(e.error?.detail || 'Could not initiate collection payment');
-      }
+        this.qrLoading.set(false);
+        this.qrError.set(e.error?.detail || 'Could not start UPI collection. Please retry.');
+      },
+    });
+  }
+
+  closeQrModal() {
+    this.qrModalOpen.set(false);
+    if (this.qrPoll) {
+      clearInterval(this.qrPoll);
+      this.qrPoll = undefined;
+    }
+  }
+
+  private startQrPolling(orderId: number, txnid: string) {
+    if (this.qrPoll) clearInterval(this.qrPoll);
+    this.qrPoll = setInterval(() => this.checkQrPaymentNow(), 3500);
+  }
+
+  checkQrPaymentNow() {
+    const orderId = this.qrOrderId;
+    const txnid = this.qrTxnId();
+    if (!orderId || !txnid || this.qrCheckingStatus()) return;
+
+    this.qrCheckingStatus.set(true);
+    this.api.getOnlineCollectionStatus(orderId, txnid).subscribe({
+      next: (res) => {
+        this.qrCheckingStatus.set(false);
+        if (res.paid) {
+          this.onlinePaid.set(true);
+          this.closeQrModal();
+        }
+      },
+      error: () => {
+        this.qrCheckingStatus.set(false);
+      },
     });
   }
 
@@ -399,9 +457,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
       otp: this.otp.trim(),
       cash_amount: this.cashAmount,
       online_amount: this.onlineAmount,
-      razorpay_order_id: this.razorpayOrderId || undefined,
-      razorpay_payment_id: this.razorpayPaymentId || undefined,
-      razorpay_signature: this.razorpaySignature || undefined,
+      collection_txnid: this.qrTxnId() || undefined,
     };
     this.api.complete(o.id, payload).subscribe({
       next: () => {
@@ -414,6 +470,9 @@ export class DpHomeComponent implements OnInit, OnDestroy {
           this.cashAmount = 0;
           this.onlineAmount = 0;
           this.onlinePaid.set(false);
+          this.qrTxnId.set('');
+          this.qrCodeUrl.set(null);
+          this.qrOrderId = null;
           this.router.navigate(['/deliverypartner/orders']);
         }, 1800);
       },

@@ -200,51 +200,54 @@
             </app-dp-order-live-map>
           </div>
 
-          <div class="complete-box">
-            <div class="complete-box__title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-              <h3>Customer Handover &amp; Verification</h3>
-            </div>
-
-            <!-- Send OTP Button with Spinner -->
-            <div class="otp-send-action">
-              <button
-                type="button"
-                class="btn-send-otp"
-                [disabled]="sendingOtp()"
-                (click)="sendOtp(a)">
-                @if (sendingOtp()) {
-                  <span class="btn-spinner"></span>
-                  <span>Sending OTP to Customer…</span>
-                } @else {
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.23h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82A16 16 0 0 0 15.18 16.1l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                  </svg>
-                  <span>Send OTP to Customer</span>
+          <div class="handover">
+            <!-- STEP 1: Verify identity via OTP -->
+            <div class="step-card" [class.step-card--done]="otpVerified()">
+              <div class="step-head">
+                <span class="step-num">1</span>
+                <h3>Verify customer</h3>
+                @if (otpVerified()) {
+                  <span class="step-tick">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Done
+                  </span>
                 }
-              </button>
-              @if (lastDevOtp()) {
-                <span class="dev-otp-tag">Dev Code: {{ lastDevOtp() }}</span>
-              }
-            </div>
-
-            <!-- OTP Input & Verify Button with Spinner -->
-            <div class="otp-input-wrap">
-              <input
-                class="otp-field"
-                type="tel"
-                maxlength="6"
-                placeholder="Enter customer 4-digit OTP"
-                [(ngModel)]="otp"
-                [disabled]="otpVerified()" />
+              </div>
 
               @if (!otpVerified()) {
+                <p class="step-hint">Ask the customer for the 4-digit OTP sent to their phone.</p>
+
                 <button
                   type="button"
-                  class="btn-verify-otp"
+                  class="step-btn step-btn--secondary"
+                  [disabled]="sendingOtp()"
+                  (click)="sendOtp(a)">
+                  @if (sendingOtp()) {
+                    <span class="btn-spinner btn-spinner--dark"></span>
+                    <span>Sending OTP…</span>
+                  } @else {
+                    <span>Resend OTP to customer</span>
+                  }
+                </button>
+
+                @if (lastDevOtp()) {
+                  <span class="dev-otp-tag">Dev Code: {{ lastDevOtp() }}</span>
+                }
+
+                <input
+                  class="otp-field"
+                  type="tel"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="Enter 4-digit OTP"
+                  [(ngModel)]="otp"
+                  [disabled]="otpVerified()" />
+
+                <button
+                  type="button"
+                  class="step-btn step-btn--primary"
                   [disabled]="verifyingOtp() || !otp.trim()"
                   (click)="verifyOtp(a)">
                   @if (verifyingOtp()) {
@@ -255,66 +258,185 @@
                   }
                 </button>
               } @else {
-                <div class="otp-verified-badge">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span>OTP Verified</span>
-                </div>
+                <p class="step-done-text">OTP verified — proceed to payment.</p>
               }
             </div>
 
-            <!-- Payment collection mode (if cash/unpaid) -->
+            <!-- STEP 2: Payment collection -->
             @if (otpVerified()) {
-              @if (isPrepaid(a)) {
-                <div class="paid-notice">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                  <span>Customer has already paid ₹{{ a.customer_total }} online. No cash to collect.</span>
+              <div class="step-card" [class.step-card--done]="paymentReady(a)">
+                <div class="step-head">
+                  <span class="step-num">2</span>
+                  <h3>Collect payment</h3>
+                  @if (paymentReady(a)) {
+                    <span class="step-tick">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      Ready
+                    </span>
+                  }
                 </div>
-              } @else {
-                <div class="collection-panel">
-                  <label class="collect-title">Doorstep Payment Collection (₹{{ a.customer_total }}):</label>
-                  <div class="pay-modes">
-                    <button type="button" class="btn-mode-tab" [class.active]="cashAmount === a.customer_total && onlineAmount === 0" (click)="setFullCash(a)">Full Cash</button>
-                    <button type="button" class="btn-mode-tab" [class.active]="onlineAmount === a.customer_total && cashAmount === 0" (click)="setFullOnline(a)">Pay via UPI/QR</button>
-                    <button type="button" class="btn-mode-tab" [class.active]="cashAmount > 0 && onlineAmount > 0" (click)="setSplitHalf(a)">Split</button>
+
+                @if (isPrepaid(a)) {
+                  <div class="paid-notice">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Customer already paid ₹{{ a.customer_total }} online. No cash to collect.</span>
                   </div>
+                } @else {
+                  <p class="step-hint">Total to collect: <strong>₹{{ a.customer_total }}</strong></p>
+
+                  <div class="pay-modes">
+                    <button type="button" class="btn-mode-tab" [class.active]="cashAmount === a.customer_total && onlineAmount === 0" (click)="setFullCash(a)">
+                      <span class="mode-icon">💵</span>
+                      <span>Full Cash</span>
+                    </button>
+                    <button type="button" class="btn-mode-tab" [class.active]="onlineAmount === a.customer_total && cashAmount === 0" (click)="setFullOnline(a)">
+                      <span class="mode-icon">📱</span>
+                      <span>UPI / QR</span>
+                    </button>
+                    <button type="button" class="btn-mode-tab" [class.active]="cashAmount > 0 && onlineAmount > 0" (click)="setSplitHalf(a)">
+                      <span class="mode-icon">➗</span>
+                      <span>Split</span>
+                    </button>
+                  </div>
+
                   <div class="split-row">
-                    <label>Cash ₹
+                    <label>
+                      <span>Cash (₹)</span>
                       <input type="number" min="0" [ngModel]="cashAmount" (ngModelChange)="onSplitChange(a, 'cash', $event)" />
                     </label>
-                    <label>Online ₹
+                    <label>
+                      <span>Online (₹)</span>
                       <input type="number" min="0" [ngModel]="onlineAmount" (ngModelChange)="onSplitChange(a, 'online', $event)" />
                     </label>
                   </div>
-                  @if (onlineAmount > 0) {
-                    <button type="button" class="btn-qr-pay" [disabled]="onlinePaid()" (click)="payOnlinePortion(a)">
-                      {{ onlinePaid() ? 'Online Paid Successfully ✓' : 'Open UPI Scanner / Pay ₹' + onlineAmount }}
+
+                  @if (onlineAmount > 0 && !onlinePaid()) {
+                    <button type="button" class="step-btn step-btn--upi" [disabled]="qrLoading()" (click)="openUpiQr(a)">
+                      @if (qrLoading()) {
+                        <span class="btn-spinner"></span>
+                        <span>Preparing QR…</span>
+                      } @else {
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="3" width="7" height="7"></rect>
+                          <rect x="14" y="3" width="7" height="7"></rect>
+                          <rect x="3" y="14" width="7" height="7"></rect>
+                          <path d="M14 14h3v3h-3zM17 17h4v4h-4z"></path>
+                        </svg>
+                        <span>Show UPI QR to customer · ₹{{ onlineAmount }}</span>
+                      }
                     </button>
                   }
-                </div>
-              }
-
-              <!-- Final Deliver Button with Loader -->
-              <button
-                type="button"
-                class="btn-deliver-complete"
-                [disabled]="completing() || !canComplete(a)"
-                (click)="complete(a)">
-                @if (completing()) {
-                  <span class="btn-spinner"></span>
-                  <span>Completing Delivery…</span>
-                } @else {
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span>Confirm Order Delivered</span>
+                  @if (onlinePaid()) {
+                    <div class="paid-notice">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      <span>Online payment of ₹{{ onlineAmount }} received.</span>
+                    </div>
+                  }
                 }
-              </button>
+              </div>
+
+              <!-- STEP 3: Confirm delivered -->
+              <div class="step-card step-card--final">
+                <div class="step-head">
+                  <span class="step-num">3</span>
+                  <h3>Confirm delivered</h3>
+                </div>
+
+                <button
+                  type="button"
+                  class="step-btn step-btn--deliver"
+                  [disabled]="completing() || !canComplete(a)"
+                  (click)="complete(a)">
+                  @if (completing()) {
+                    <span class="btn-spinner"></span>
+                    <span>Completing delivery…</span>
+                  } @else {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>Confirm order delivered</span>
+                  }
+                </button>
+
+                @if (!canComplete(a)) {
+                  <p class="step-hint step-hint--muted">
+                    @if (!otpVerified()) {
+                      Verify the customer OTP first.
+                    } @else if (!isPrepaid(a) && (cashAmount + onlineAmount) !== a.customer_total) {
+                      Cash + Online must add up to ₹{{ a.customer_total }}.
+                    } @else if (onlineAmount > 0 && !onlinePaid()) {
+                      Waiting for customer to complete UPI payment.
+                    }
+                  </p>
+                }
+              </div>
             }
+          </div>
+        }
+
+        <!-- UPI QR Modal -->
+        @if (qrModalOpen()) {
+          <div class="qr-modal-overlay" (click)="closeQrModal()">
+            <div class="qr-modal" (click)="$event.stopPropagation()">
+              <div class="qr-modal-head">
+                <h3>Ask customer to scan</h3>
+                <button type="button" class="qr-modal-close" (click)="closeQrModal()" aria-label="Close">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="qr-modal-body">
+                <p class="qr-amount">Amount: <strong>₹{{ onlineAmount }}</strong></p>
+
+                @if (qrLoading()) {
+                  <div class="qr-loading-block">
+                    <span class="btn-spinner btn-spinner--dark"></span>
+                    <p>Preparing secure payment link…</p>
+                  </div>
+                } @else if (qrCodeUrl()) {
+                  <div class="qr-image-wrap">
+                    <qrcode
+                      [qrdata]="qrCodeUrl()!"
+                      [width]="240"
+                      [errorCorrectionLevel]="'M'"
+                      [margin]="1">
+                    </qrcode>
+                  </div>
+                  <p class="qr-hint">Customer opens phone camera → scans QR → pays with any UPI app (Google Pay, PhonePe, Paytm).</p>
+                  <p class="qr-txn">Ref: <code>{{ qrTxnId() }}</code></p>
+
+                  <div class="qr-poll-status">
+                    @if (qrCheckingStatus()) {
+                      <span class="btn-spinner btn-spinner--dark"></span>
+                      <span>Waiting for payment…</span>
+                    } @else {
+                      <span>Awaiting customer payment…</span>
+                    }
+                  </div>
+                }
+
+                @if (qrError()) {
+                  <div class="qr-error">{{ qrError() }}</div>
+                }
+              </div>
+
+              <div class="qr-modal-footer">
+                <button type="button" class="btn-secondary" (click)="closeQrModal()">Close</button>
+                <button type="button" class="btn-primary-red" [disabled]="!qrCodeUrl() || qrCheckingStatus()" (click)="checkQrPaymentNow()">
+                  {{ qrCheckingStatus() ? 'Checking…' : "I've received payment · Check" }}
+                </button>
+              </div>
+            </div>
           </div>
         }
       </section>

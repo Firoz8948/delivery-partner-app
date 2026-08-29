@@ -42,14 +42,22 @@ export interface DpDashboard {
   available_orders: DpOrder[];
 }
 
-export interface CollectionPaymentResponse {
-  razorpay_order_id: string;
+/** Response from initiating a UPI/QR doorstep collection via PayU. */
+export interface OnlineCollectionInitResponse {
+  txnid: string;
   amount: number;
-  currency: string;
-  key_id: string;
+  qr_url: string;            // URL that the customer scans (opens PayU checkout)
+  payment_page_url: string;  // same as qr_url; kept separate for future variants
+  expires_at: string | null;
 }
 
-declare const Razorpay: any;
+/** Polled while customer completes UPI payment on their phone. */
+export interface OnlineCollectionStatusResponse {
+  paid: boolean;
+  amount: number;
+  paid_at: string | null;
+  txnid: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class DeliveryPortalService {
@@ -96,10 +104,21 @@ export class DeliveryPortalService {
     );
   }
 
-  createCollectionPayment(orderId: number, onlineAmount: number) {
-    return this.http.post<CollectionPaymentResponse>(
-      `${this.api}/orders/${orderId}/collection-payment`,
+  /**
+   * Initiate a PayU-hosted UPI/QR collection for the online portion of a doorstep order.
+   * Backend returns a short URL to be encoded in a QR the customer scans.
+   */
+  initiateOnlineCollection(orderId: number, onlineAmount: number) {
+    return this.http.post<OnlineCollectionInitResponse>(
+      `${this.api}/orders/${orderId}/collect-online/initiate`,
       { online_amount: onlineAmount },
+    );
+  }
+
+  /** Poll PayU-collected payment status while DP is showing the QR to the customer. */
+  getOnlineCollectionStatus(orderId: number, txnid: string) {
+    return this.http.get<OnlineCollectionStatusResponse>(
+      `${this.api}/orders/${orderId}/collect-online/status?txnid=${encodeURIComponent(txnid)}`,
     );
   }
 
@@ -109,40 +128,10 @@ export class DeliveryPortalService {
       otp: string;
       cash_amount: number;
       online_amount: number;
-      razorpay_order_id?: string;
-      razorpay_payment_id?: string;
-      razorpay_signature?: string;
+      collection_txnid?: string;
     },
   ) {
     return this.http.post(`${this.api}/orders/${orderId}/complete`, payload);
-  }
-
-  openCollectionCheckout(
-    pay: CollectionPaymentResponse,
-    onSuccess: (data: {
-      razorpay_order_id: string;
-      razorpay_payment_id: string;
-      razorpay_signature: string;
-    }) => void,
-    onFailure: () => void,
-  ) {
-    const options = {
-      key: pay.key_id,
-      amount: Math.round(pay.amount * 100),
-      currency: pay.currency,
-      name: 'LalganjEats',
-      description: 'Order collection',
-      order_id: pay.razorpay_order_id,
-      theme: { color: '#187a43' },
-      handler: (response: {
-        razorpay_order_id: string;
-        razorpay_payment_id: string;
-        razorpay_signature: string;
-      }) => onSuccess(response),
-      modal: { ondismiss: () => onFailure() },
-    };
-    const rzp = new Razorpay(options);
-    rzp.open();
   }
 
   myOrders(filter = 'all') {

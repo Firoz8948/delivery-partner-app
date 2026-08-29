@@ -33,7 +33,7 @@ export class NotificationService {
             description: 'Instant notifications for incoming orders and deliveries',
             importance: 5,
             visibility: 1,
-            sound: 'notification_sound.wav',
+            sound: 'order_alert',
             vibration: true,
             lights: true,
             lightColor: '#FF0000',
@@ -44,7 +44,7 @@ export class NotificationService {
             description: 'Loud notifications for incoming delivery offers',
             importance: 5,
             visibility: 1,
-            sound: 'notification_sound.wav',
+            sound: 'order_alert',
             vibration: true,
             lights: true,
             lightColor: '#FF0000',
@@ -86,6 +86,24 @@ export class NotificationService {
         'pushNotificationReceived',
         (notification: PushNotificationSchema) => {
           console.log('Delivery push received:', notification);
+          // Android suppresses tray notifs while the app is foregrounded, so
+          // we schedule a local one on the urgent channel — this triggers
+          // the loud `order_alert` sound + heads-up banner even when the DP
+          // is actively using the app.
+          try {
+            LocalNotifications.schedule({
+              notifications: [
+                {
+                  id: Math.floor(Math.random() * 100000),
+                  title: notification.title || 'New order',
+                  body: notification.body || 'Tap to view',
+                  channelId: 'lalganjeats_urgent_orders',
+                  sound: 'order_alert',
+                  extra: notification.data ?? null,
+                },
+              ],
+            });
+          } catch (_) {}
           this.playChimeSound();
         }
       );
@@ -125,7 +143,7 @@ export class NotificationService {
               title,
               body,
               channelId: 'lalganjeats_urgent_orders',
-              sound: 'res://raw/notification_sound',
+              sound: 'order_alert',
               actionTypeId: '',
               extra: null
             }

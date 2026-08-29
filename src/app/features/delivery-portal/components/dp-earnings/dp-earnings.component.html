@@ -47,13 +47,28 @@
       </div>
       <button
         type="button"
-        class="btn-primary"
+        class="btn-primary btn-with-spinner"
         [disabled]="cashOnHand <= 0 || clearingCash"
         (click)="clearCollectedCash()">
-        {{ clearingCash ? 'Opening PayU…' : 'Clear collected cash' }}
+        @if (clearingCash) {
+          <span class="inline-spinner"></span>
+          <span>Opening PayU…</span>
+        } @else {
+          <span>Clear collected cash</span>
+        }
       </button>
     </div>
   </div>
+
+  @if (clearingCash) {
+    <div class="cash-clear-overlay">
+      <div class="cash-clear-overlay__box">
+        <span class="big-spinner"></span>
+        <h4>Preparing secure payment page…</h4>
+        <p>Redirecting you to PayU. Please don't close the app.</p>
+      </div>
+    </div>
+  }
 
   <div class="section">
     <div class="section-title-row">

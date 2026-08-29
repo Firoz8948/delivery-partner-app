@@ -7,8 +7,8 @@ android {
         applicationId "com.lalganjeats.deliverypartner"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.0.4"
+        versionCode 5
+        versionName "1.0.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,37 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Shared release keystore (all 3 apps use the same file) so APKs signed on
+    // any developer machine can update APKs signed on any other machine.
+    // If the properties file is missing gradle falls back to the default debug
+    // keystore and Android will show "App not installed" whenever the signer
+    // differs from what's currently on the device.
+    def sharedKeystoreProps = rootProject.file("../../apks/keystores/keystore.properties")
+    def sharedProps = new Properties()
+    if (sharedKeystoreProps.exists()) {
+        sharedProps.load(new FileInputStream(sharedKeystoreProps))
+    }
+
     signingConfigs {
         debug {
             v1SigningEnabled true
             v2SigningEnabled true
+            if (sharedKeystoreProps.exists()) {
+                storeFile file(sharedProps['storeFile'])
+                storePassword sharedProps['storePassword']
+                keyAlias sharedProps['keyAlias']
+                keyPassword sharedProps['keyPassword']
+            }
+        }
+        release {
+            v1SigningEnabled true
+            v2SigningEnabled true
+            if (sharedKeystoreProps.exists()) {
+                storeFile file(sharedProps['storeFile'])
+                storePassword sharedProps['storePassword']
+                keyAlias sharedProps['keyAlias']
+                keyPassword sharedProps['keyPassword']
+            }
         }
     }
     buildTypes {
@@ -27,6 +54,11 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            if (sharedKeystoreProps.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
