@@ -263,6 +263,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   }
 
   accept(o: DpOrder) {
+    this.notif.stopSound();
     this.busyId.set(o.id);
     this.api.accept(o.id).subscribe({
       next: () => { this.busyId.set(null); this.refresh(); },
@@ -271,6 +272,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   }
 
   reject(o: DpOrder) {
+    this.notif.stopSound();
     this.busyId.set(o.id);
     this.api.reject(o.id).subscribe({
       next: () => { this.busyId.set(null); this.refresh(); },

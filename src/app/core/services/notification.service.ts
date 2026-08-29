@@ -139,22 +139,89 @@ export class NotificationService {
     this.playChimeSound();
   }
 
+  private activeAudio: HTMLAudioElement | null = null;
+  private activeAudioCtx: any = null;
+  private activeOscillators: any[] = [];
+
+  stopSound() {
+    // 1. Stop HTML5 audio playback immediately
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.currentTime = 0;
+      } catch (_) {}
+      this.activeAudio = null;
+    }
+
+    // 2. Stop WebAudio synthesized chimes immediately
+    if (this.activeOscillators.length > 0) {
+      for (const osc of this.activeOscillators) {
+        try { osc.stop(); } catch (_) {}
+      }
+      this.activeOscillators = [];
+    }
+    if (this.activeAudioCtx) {
+      try { this.activeAudioCtx.close(); } catch (_) {}
+      this.activeAudioCtx = null;
+    }
+
+    // 3. Stop hardware vibration
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(0); } catch (_) {}
+    }
+  }
+
   private playChimeSound() {
+    // Stop any previously playing alert so it doesn't overlap
+    this.stopSound();
+
+    // 1. Try playing custom audio sound file (e.g. assets/sounds/order_alert.mp3)
+    try {
+      const audio = new Audio('assets/sounds/order_alert.mp3');
+      audio.volume = 1.0;
+      this.activeAudio = audio;
+      audio.onended = () => {
+        if (this.activeAudio === audio) this.activeAudio = null;
+      };
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Fallback to WebAudio synth chime if MP3 file is not loaded/blocked
+          if (this.activeAudio === audio) this.activeAudio = null;
+          this.playSynthChime();
+        });
+      }
+    } catch (_) {
+      this.playSynthChime();
+    }
+
+    // 2. Hardware vibration pattern [vibrate, pause, vibrate]
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([400, 200, 400, 200, 600]);
+      } catch (_) {}
+    }
+  }
+
+  private playSynthChime() {
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtxClass) return;
       const audioCtx = new AudioCtxClass();
+      this.activeAudioCtx = audioCtx;
+      this.activeOscillators = [];
 
       // Play 3 loud, rapid, attention-grabbing chime burst pairs (like order alert sound)
       const playBeep = (freq1: number, freq2: number, startTime: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+        this.activeOscillators.push(osc);
 
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq1, startTime);
         osc.frequency.exponentialRampToValueAtTime(freq2, startTime + duration * 0.8);
 
-        gain.gain.setValueAtTime(0.75, startTime);
+        gain.gain.setValueAtTime(0.85, startTime);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
         osc.connect(gain);
@@ -176,6 +243,15 @@ export class NotificationService {
       // Burst 3
       playBeep(988, 1480, now + 0.80, 0.18);
       playBeep(1480, 1976, now + 0.92, 0.35);
+
+      // Auto clean up after completion
+      setTimeout(() => {
+        if (this.activeAudioCtx === audioCtx) {
+          try { audioCtx.close(); } catch (_) {}
+          this.activeAudioCtx = null;
+          this.activeOscillators = [];
+        }
+      }, 1500);
     } catch (e) {
       console.warn('Audio chime note:', e);
     }
