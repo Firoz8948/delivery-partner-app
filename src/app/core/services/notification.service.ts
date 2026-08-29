@@ -25,8 +25,19 @@ export class NotificationService {
           await LocalNotifications.requestPermissions();
         }
 
-        // Create high-importance notification channel with loud sound & vibration
+        // Create high-importance notification channels with loud sound & vibration for killed/background app wake-up
         try {
+          await LocalNotifications.createChannel({
+            id: 'lalganjeats_orders',
+            name: 'LalganjEats Orders',
+            description: 'Instant notifications for incoming orders and deliveries',
+            importance: 5,
+            visibility: 1,
+            sound: 'notification_sound.wav',
+            vibration: true,
+            lights: true,
+            lightColor: '#FF0000',
+          });
           await LocalNotifications.createChannel({
             id: 'lalganjeats_urgent_orders',
             name: 'Urgent Delivery Offers',

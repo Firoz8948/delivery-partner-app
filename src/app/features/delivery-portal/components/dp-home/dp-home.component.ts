@@ -2,6 +2,7 @@ import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   DeliveryPortalService,
   DpDashboard,
@@ -24,6 +25,7 @@ import { DpOrderLiveMapComponent } from '../dp-order-live-map/dp-order-live-map.
 export class DpHomeComponent implements OnInit, OnDestroy {
   private api = inject(DeliveryPortalService);
   private notif = inject(NotificationService);
+  private router = inject(Router);
 
   data = signal<DpDashboard | null>(null);
   error = signal('');
@@ -31,6 +33,11 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   otp = '';
   otpVerified = signal(false);
   lastDevOtp = signal('');
+  sendingOtp = signal(false);
+  verifyingOtp = signal(false);
+  completing = signal(false);
+  orderDelivered = signal(false);
+
   cashAmount = 0;
   onlineAmount = 0;
   onlinePaid = signal(false);
@@ -280,35 +287,37 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   }
 
   sendOtp(o: DpOrder) {
-    this.busyId.set(o.id);
+    this.sendingOtp.set(true);
+    this.error.set('');
     this.api.sendOtp(o.id).subscribe({
       next: (res) => {
-        this.busyId.set(null);
+        this.sendingOtp.set(false);
         if (res.dev_otp) this.lastDevOtp.set(res.dev_otp);
       },
       error: (e) => {
-        this.busyId.set(null);
-        this.error.set(e.error?.detail || 'Send OTP failed');
+        this.sendingOtp.set(false);
+        this.error.set(e.error?.detail || 'Failed to send OTP to customer');
       },
     });
   }
 
   verifyOtp(o: DpOrder) {
     const code = this.otp.trim();
-    if (code.length !== 6) {
-      this.error.set('Enter 6-digit OTP');
+    if (code.length < 4 || code.length > 6) {
+      this.error.set('Please enter the 4-digit OTP sent to customer');
       return;
     }
-    this.busyId.set(o.id);
+    this.verifyingOtp.set(true);
+    this.error.set('');
     this.api.verifyOtp(o.id, code).subscribe({
       next: () => {
-        this.busyId.set(null);
+        this.verifyingOtp.set(false);
         this.otpVerified.set(true);
         this.refresh();
       },
       error: (e) => {
-        this.busyId.set(null);
-        this.error.set(e.error?.detail || 'Invalid OTP');
+        this.verifyingOtp.set(false);
+        this.error.set(e.error?.detail || 'Invalid or expired OTP. Please try again.');
       },
     });
   }
@@ -382,7 +391,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   }
 
   complete(o: DpOrder) {
-    this.busyId.set(o.id);
+    this.completing.set(true);
     this.error.set('');
     const payload = {
       otp: this.otp.trim(),
@@ -394,17 +403,21 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     };
     this.api.complete(o.id, payload).subscribe({
       next: () => {
-        this.busyId.set(null);
-        this.otp = '';
-        this.otpVerified.set(false);
-        this.cashAmount = 0;
-        this.onlineAmount = 0;
-        this.onlinePaid.set(false);
-        this.refresh();
+        this.completing.set(false);
+        this.orderDelivered.set(true);
+        setTimeout(() => {
+          this.orderDelivered.set(false);
+          this.otp = '';
+          this.otpVerified.set(false);
+          this.cashAmount = 0;
+          this.onlineAmount = 0;
+          this.onlinePaid.set(false);
+          this.router.navigate(['/deliverypartner/orders']);
+        }, 1800);
       },
       error: (e) => {
-        this.busyId.set(null);
-        this.error.set(e.error?.detail || 'Deliver failed');
+        this.completing.set(false);
+        this.error.set(e.error?.detail || 'Failed to complete delivery');
       },
     });
   }
