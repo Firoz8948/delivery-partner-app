@@ -206,12 +206,12 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     if (Capacitor.isNativePlatform()) {
       Geolocation.watchPosition(
         { enableHighAccuracy: true, maximumAge: 5000 },
-        (pos) => {
+        (pos: any) => {
           if (pos && pos.coords) {
             this.handleGeoPos(pos.coords.latitude, pos.coords.longitude);
           }
         }
-      ).then(id => {
+      ).then((id: string) => {
         this.capWatchId = id;
       }).catch(() => {});
     } else if (navigator.geolocation) {
