@@ -94,8 +94,7 @@ export class DpEarningsComponent implements OnInit {
         this.cashOrderCount = data.order_count || 0;
       },
       error: () => {
-        this.cashOnHand = 0;
-        this.cashOrderCount = 0;
+        // Keep last known cash on hand; never zero it on a failed request.
       },
     });
   }
