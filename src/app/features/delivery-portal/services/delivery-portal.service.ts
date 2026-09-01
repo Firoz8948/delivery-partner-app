@@ -12,6 +12,8 @@ export interface DpOrder {
   restaurant_lat?: number | null;
   restaurant_lng?: number | null;
   delivery_address: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
   customer_lat?: number | null;
   customer_lng?: number | null;
   customer_total: number;
@@ -23,9 +25,21 @@ export interface DpOrder {
   map_to_customer: string | null;
   payment_method: string;
   payment_status?: string;
+  payment_label?: string;
+  payment_via?: string | null;
+  prepaid_amount?: number;
+  cash_amount?: number;
   otp_verified?: boolean;
   cash_collected?: number | null;
-  items: { name: string; quantity: number; price: number }[];
+  online_collected?: number | null;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    variant_label?: string | null;
+    line_total?: number;
+    line_label?: string;
+  }[];
   created_at: string | null;
 }
 

@@ -259,6 +259,32 @@
     max-width: 65%;
   }
 
+  .customer-call {
+    color: #0f766e;
+    font-weight: 800;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+  }
+
+  &--items {
+    align-items: flex-start;
+  }
+
+  .item-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: right;
+    max-width: 70%;
+  }
+
+  .item-line {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+  }
+
   &.highlight-collect {
     background: #ecfdf5;
     border: 1px solid #a7f3d0;
@@ -795,6 +821,40 @@
       color: #334155;
 
       svg { color: #94a3b8; flex-shrink: 0; }
+    }
+
+    .offer-collect {
+      margin: 6px 0 0;
+      font-size: 14px;
+      font-weight: 800;
+      color: #b45309;
+      background: #fef3c7;
+      padding: 6px 10px;
+      border-radius: 8px;
+      width: fit-content;
+
+      &--paid {
+        color: #047857;
+        background: #d1fae5;
+      }
+    }
+
+    .offer-items {
+      margin: 8px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .offer-item-line {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 8px;
     }
 
     .offer-meta {

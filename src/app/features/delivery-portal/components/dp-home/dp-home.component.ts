@@ -134,6 +134,18 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     return (o.payment_status || '').toLowerCase() === 'paid';
   }
 
+  collectText(o: DpOrder): string {
+    if (this.isPrepaid(o)) return 'Collect 0 Rs';
+    return `Collect - ₹${o.customer_total}`;
+  }
+
+  telHref(phone?: string | null): string | null {
+    const digits = (phone || '').replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.length === 10) return `tel:+91${digits}`;
+    return `tel:+${digits.replace(/^0+/, '')}`;
+  }
+
   async requestLocationPermission() {
     if (this.requestingLocation()) return;
     this.requestingLocation.set(true);

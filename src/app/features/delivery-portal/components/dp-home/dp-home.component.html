@@ -105,7 +105,36 @@
             <span class="row-value"><strong>{{ a.restaurant }}</strong></span>
           </div>
 
-          <!-- Row 3: Delivery Address -->
+          <div class="order-row order-row--items">
+            <span class="row-label">Items</span>
+            <span class="row-value item-lines">
+              @for (item of a.items; track item.name + (item.variant_label || '') + item.quantity) {
+                <span class="item-line">{{ item.line_label || (item.quantity + '× ' + item.name) }}</span>
+              } @empty {
+                <span>—</span>
+              }
+            </span>
+          </div>
+
+          <!-- Row 3: Customer (visible after accept) -->
+          <div class="order-row">
+            <span class="row-label">Customer</span>
+            <span class="row-value">
+              <strong>{{ a.customer_name || 'Customer' }}</strong>
+            </span>
+          </div>
+          <div class="order-row">
+            <span class="row-label">Mobile</span>
+            <span class="row-value">
+              @if (telHref(a.customer_phone); as tel) {
+                <a class="customer-call" [href]="tel">{{ a.customer_phone }}</a>
+              } @else {
+                <span>—</span>
+              }
+            </span>
+          </div>
+
+          <!-- Row 4: Delivery Address -->
           <div class="order-row">
             <span class="row-label">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -117,15 +146,11 @@
             <span class="row-value row-address">{{ a.delivery_address }}</span>
           </div>
 
-          <!-- Row 4: Collect Amount -->
+          <!-- Row 5: Collect Amount -->
           <div class="order-row highlight-collect">
-            <span class="row-label">Collect Amount</span>
+            <span class="row-label">Collect</span>
             <span class="row-value collect-val">
-              @if (isPrepaid(a)) {
-                <span class="badge-prepaid">₹0 (Prepaid Online)</span>
-              } @else {
-                <strong>₹{{ a.customer_total }}</strong>
-              }
+              <strong>{{ collectText(a) }}</strong>
             </span>
           </div>
 
@@ -284,10 +309,10 @@
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                       <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
-                    <span>Customer already paid ₹{{ a.customer_total }} online. No cash to collect.</span>
+                    <span>Collect 0 Rs. Customer already paid ₹{{ a.customer_total }} online.</span>
                   </div>
                 } @else {
-                  <p class="step-hint">Total to collect: <strong>₹{{ a.customer_total }}</strong></p>
+                  <p class="step-hint"><strong>{{ collectText(a) }}</strong></p>
 
                   <div class="pay-modes">
                     <button type="button" class="btn-mode-tab" [class.active]="cashAmount === a.customer_total && onlineAmount === 0" (click)="setFullCash(a)">
@@ -473,6 +498,16 @@
               </svg>
               {{ o.delivery_address }}
             </p>
+            <p class="offer-collect" [class.offer-collect--paid]="isPrepaid(o)">
+              {{ collectText(o) }}
+            </p>
+            @if (o.items.length) {
+              <div class="offer-items">
+                @for (item of o.items; track item.name + (item.variant_label || '') + item.quantity) {
+                  <div class="offer-item-line">{{ item.line_label || (item.quantity + '× ' + item.name) }}</div>
+                }
+              </div>
+            }
             <div class="offer-meta">
               @if (o.distance_km_to_restaurant != null) {
                 <span class="meta-item">{{ o.distance_km_to_restaurant }} km to store</span>
