@@ -26,6 +26,9 @@ export interface DpOrder {
   payment_method: string;
   payment_status?: string;
   payment_label?: string;
+  payment_mode?: string;
+  payment_mode_label?: string;
+  payment_verified?: boolean;
   payment_via?: string | null;
   prepaid_amount?: number;
   cash_amount?: number;
@@ -148,8 +151,10 @@ export class DeliveryPortalService {
     return this.http.post(`${this.api}/orders/${orderId}/complete`, payload);
   }
 
-  myOrders(filter = 'all') {
-    return this.http.get<DpOrder[]>(`${this.api}/orders?filter=${filter}`);
+  myOrders(filter = 'today', date?: string) {
+    const params = new URLSearchParams({ filter });
+    if (date) params.set('date', date);
+    return this.http.get<DpOrder[]>(`${this.api}/orders?${params.toString()}`);
   }
 
   earnings(filter = 'today') {
