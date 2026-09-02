@@ -199,7 +199,7 @@ export class DpOrdersComponent implements OnInit {
     this.loading.set(true);
     this.api.myOrders(filter, date).subscribe({
       next: (o) => {
-        this.orders.set(o);
+        this.orders.set(o.filter((row) => (row.status || '').toLowerCase() === 'delivered'));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
