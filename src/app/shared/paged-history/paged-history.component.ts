@@ -7,7 +7,7 @@ export interface HistoryPage {
   page_size: number;
   total: number;
   total_pages: number;
-  items: Record<string, unknown>[];
+  items: Record<string, any>[];
 }
 
 export interface HistoryColumn {
@@ -49,10 +49,10 @@ export interface HistoryColumn {
                       <td>
                         @switch (col.kind) {
                           @case ('money') {
-                            ₹{{ (row[col.key] || 0) | number:'1.2-2' }}
+                            ₹{{ asNumber(row[col.key]) | number:'1.2-2' }}
                           }
                           @case ('datetime') {
-                            {{ (row[col.key] || '') | date:'d MMM yyyy, h:mm a' }}
+                            {{ asDate(row[col.key]) | date:'d MMM yyyy, h:mm a' }}
                           }
                           @case ('status') {
                             <span class="hist-status" [attr.data-status]="row['status']">
@@ -132,7 +132,21 @@ export class PagedHistoryComponent implements OnInit {
   loading = false;
   page = 1;
   totalPages = 0;
-  items: Record<string, unknown>[] = [];
+  items: Record<string, any>[] = [];
+
+  asNumber(val: unknown): number {
+    if (typeof val === 'number') return val;
+    const parsed = Number(val);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  asDate(val: unknown): string | number | Date | null | undefined {
+    if (!val) return null;
+    if (typeof val === 'string' || typeof val === 'number' || val instanceof Date) {
+      return val;
+    }
+    return String(val);
+  }
 
   ngOnInit() {
     if (this.hideButton) {
