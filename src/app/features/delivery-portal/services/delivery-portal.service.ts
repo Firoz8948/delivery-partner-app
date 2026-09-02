@@ -44,6 +44,15 @@ export interface DpOrder {
     line_label?: string;
   }[];
   created_at: string | null;
+  delivered_at?: string | null;
+}
+
+export interface DpOrdersPage {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  items: DpOrder[];
 }
 
 export interface DpDashboard {
@@ -151,10 +160,10 @@ export class DeliveryPortalService {
     return this.http.post(`${this.api}/orders/${orderId}/complete`, payload);
   }
 
-  myOrders(filter = 'today', date?: string) {
-    const params = new URLSearchParams({ filter });
+  myOrders(filter = 'today', date?: string, page = 1) {
+    const params = new URLSearchParams({ filter, page: String(page) });
     if (date) params.set('date', date);
-    return this.http.get<DpOrder[]>(`${this.api}/orders?${params.toString()}`);
+    return this.http.get<DpOrdersPage>(`${this.api}/orders?${params.toString()}`);
   }
 
   earnings(filter = 'today') {

@@ -1,5 +1,5 @@
 import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header/portal-page-header.component';
-import { Component, OnInit, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.service';
 
@@ -44,6 +44,9 @@ import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.s
               <div>
                 <strong>{{ o.order_number }}</strong>
                 <span class="status-pill">DELIVERED</span>
+                @if (o.delivered_at || o.created_at) {
+                  <p class="when">{{ (o.delivered_at || o.created_at) | date:'d MMM yyyy, h:mm a' }}</p>
+                }
                 @if (payChip(o); as chip) {
                   <p class="pay-line">{{ chip }}</p>
                 }
@@ -87,6 +90,29 @@ import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.s
         } @empty {
           <p class="muted">{{ dateFilter() ? 'No deliveries on this date.' : 'No delivery history yet.' }}</p>
         }
+        @if (total() > 0) {
+          <div class="pager">
+            <span class="pager-meta">Showing {{ showingFrom() }}–{{ showingTo() }} of {{ total() }}</span>
+            @if (totalPages() > 1) {
+              <div class="pager-nav">
+                <button type="button" [disabled]="page() <= 1 || loading()" (click)="goToPage(page() - 1)">Prev</button>
+                <span>Page {{ page() }} of {{ totalPages() }}</span>
+                <button type="button" [disabled]="page() >= totalPages() || loading()" (click)="goToPage(page() + 1)">Next</button>
+                <label class="pager-goto">
+                  Go
+                  <input
+                    #pageInput
+                    type="number"
+                    min="1"
+                    [attr.max]="totalPages()"
+                    [value]="page()"
+                    (keydown.enter)="goToPage(pageInput.value)" />
+                </label>
+                <button type="button" [disabled]="loading()" (click)="goToPage(pageInput.value)">Go</button>
+              </div>
+            }
+          </div>
+        }
       }
     </div>
   `,
@@ -120,6 +146,7 @@ import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.s
       letter-spacing: 0.04em; color: #166534; background: #dcfce7;
       border-radius: 999px; padding: 2px 8px; vertical-align: middle;
     }
+    .when { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 600; }
     .pay-line { margin: 4px 0 0; color: #334155; font-size: 13px; font-weight: 700; }
     .row-right { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
     .chevron { color: #64748b; transition: transform 0.15s ease; }
@@ -133,6 +160,20 @@ import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.s
     .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: #334155; }
     .muted { color: #888; }
     p { margin: 4px 0 0; color: #666; font-size: 13px; }
+    .pager {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px; margin-top: 12px; color: #64748b; font-size: 13px;
+    }
+    .pager-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .pager-nav button {
+      border: 1px solid #ddd; background: #fff; border-radius: 8px;
+      padding: 6px 12px; cursor: pointer; font-weight: 700;
+    }
+    .pager-nav button:disabled { opacity: 0.45; cursor: default; }
+    .pager-goto { display: inline-flex; align-items: center; gap: 6px; }
+    .pager-goto input {
+      width: 56px; border: 1px solid #ddd; border-radius: 8px; padding: 6px 8px;
+    }
   `],
 })
 export class DpOrdersComponent implements OnInit {
@@ -145,6 +186,18 @@ export class DpOrdersComponent implements OnInit {
   dateFilter = signal<string | null>(this.todayIso());
   loading = signal(true);
   expandedId = signal<number | null>(null);
+  page = signal(1);
+  pageSize = signal(10);
+  total = signal(0);
+  totalPages = signal(0);
+
+  readonly showingFrom = computed(() => {
+    if (!this.total()) return 0;
+    return (this.page() - 1) * this.pageSize() + 1;
+  });
+  readonly showingTo = computed(() =>
+    Math.min(this.page() * this.pageSize(), this.total()),
+  );
 
   ngOnInit() { this.loadToday(); }
 
@@ -170,13 +223,13 @@ export class DpOrdersComponent implements OnInit {
     this.view.set('today');
     this.dateStr.set(this.todayIso());
     this.dateFilter.set(this.todayIso());
-    this.fetch('today', this.dateStr());
+    this.fetch('today', this.dateStr(), 1);
   }
 
   openHistory() {
     this.view.set('history');
     this.dateFilter.set(null);
-    this.fetch('history');
+    this.fetch('history', undefined, 1);
   }
 
   openDatePicker() {
@@ -191,19 +244,35 @@ export class DpOrdersComponent implements OnInit {
     this.dateStr.set(value);
     this.dateFilter.set(value);
     this.view.set(value === this.todayIso() ? 'today' : 'history');
-    this.fetch(this.view(), value);
+    this.fetch(this.view(), value, 1);
   }
 
-  fetch(filter: string, date?: string) {
+  fetch(filter: string, date?: string, page = this.page()) {
+    const nextPage = Math.max(1, Math.trunc(Number(page) || 1));
     this.expandedId.set(null);
     this.loading.set(true);
-    this.api.myOrders(filter, date).subscribe({
-      next: (o) => {
-        this.orders.set(o.filter((row) => (row.status || '').toLowerCase() === 'delivered'));
+    this.api.myOrders(filter, date, nextPage).subscribe({
+      next: (res) => {
+        const items = res.items || [];
+        this.orders.set(items.filter((row) => (row.status || '').toLowerCase() === 'delivered'));
+        this.page.set(res.page || 1);
+        this.pageSize.set(res.page_size || 10);
+        this.total.set(res.total || 0);
+        this.totalPages.set(res.total_pages || 0);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  goToPage(raw: string | number) {
+    const last = this.totalPages();
+    const n = Math.trunc(Number(raw));
+    if (!Number.isFinite(n) || n < 1 || !last) return;
+    const target = Math.min(n, last);
+    if (target === this.page() && this.orders().length) return;
+    const date = this.dateFilter() || undefined;
+    this.fetch(this.view() === 'today' ? 'today' : 'history', date, target);
   }
 
   toggle(id: number) {
