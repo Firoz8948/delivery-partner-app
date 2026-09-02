@@ -1,4 +1,5 @@
 import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header/portal-page-header.component';
+import { PagedHistoryComponent, HistoryColumn } from '../../../../shared/paged-history/paged-history.component';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -14,7 +15,7 @@ import { DeliveryPortalService } from '../../services/delivery-portal.service';
 @Component({
   selector: 'app-dp-earnings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PortalPageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, PortalPageHeaderComponent, PagedHistoryComponent],
   templateUrl: './dp-earnings.component.html',
   styleUrl: './dp-earnings.component.scss',
 })
@@ -38,6 +39,21 @@ export class DpEarningsComponent implements OnInit {
 
   successMsg = '';
   errorMsg = '';
+
+  readonly settlementColumns: HistoryColumn[] = [
+    { key: 'settled_at', label: 'Date', kind: 'datetime' },
+    { key: 'order_count', label: 'Orders' },
+    { key: 'amount', label: 'Amount', kind: 'money' },
+  ];
+  readonly cashColumns: HistoryColumn[] = [
+    { key: 'created_at', label: 'Date', kind: 'datetime' },
+    { key: 'amount', label: 'Amount', kind: 'money' },
+    { key: 'order_count', label: 'Orders' },
+    { key: 'status', label: 'Status', kind: 'status' },
+  ];
+
+  loadSettlements = (page: number) => this.earningsService.getDeliverySettlementHistory(page);
+  loadCashHistory = (page: number) => this.deliveryPortal.cashRemittanceHistory(page);
 
   constructor(
     private fb: FormBuilder,

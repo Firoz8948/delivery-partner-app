@@ -28,11 +28,23 @@
         <span class="amount">₹{{ summary.settled_amount | number:'1.2-2' }}</span>
       </div>
     </div>
+    <div class="history-slot">
+      <app-paged-history
+        buttonLabel="Settlement history"
+        emptyText="No settlement history yet."
+        [columns]="settlementColumns"
+        [fetchPage]="loadSettlements" />
+    </div>
   }
 
   <div class="section cash-clear-section">
     <div class="section-title-row">
       <h3>Collected cash</h3>
+      <app-paged-history
+        buttonLabel="Collected cash history"
+        emptyText="No cash clear payments yet."
+        [columns]="cashColumns"
+        [fetchPage]="loadCashHistory" />
     </div>
     <p class="cash-clear-help">
       Keep physical cash with you and pay the same amount online to clear it with the platform.

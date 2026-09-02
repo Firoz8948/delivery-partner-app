@@ -174,6 +174,16 @@ export class DeliveryPortalService {
     }>(`${this.api}/cash-on-hand`);
   }
 
+  cashRemittanceHistory(page = 1) {
+    return this.http.get<{
+      page: number;
+      page_size: number;
+      total: number;
+      total_pages: number;
+      items: Record<string, unknown>[];
+    }>(`${this.api}/cash-remittances?page=${page}`);
+  }
+
   initiateCashRemit() {
     return this.http.post<{
       payment_url: string;
