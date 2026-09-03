@@ -62,9 +62,11 @@ export interface DpDashboard {
     phone: string;
     total_earnings: number;
     has_location: boolean;
+    allow_multiple_orders?: boolean;
   };
   today: { orders: number; earnings: number };
   active_order: DpOrder | null;
+  active_orders?: DpOrder[];
   available_orders: DpOrder[];
 }
 

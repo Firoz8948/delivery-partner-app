@@ -171,6 +171,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    flex-wrap: wrap;
     padding-bottom: 14px;
     border-bottom: 1px solid #f1f5f9;
     margin-bottom: 14px;
@@ -787,6 +788,29 @@
   color: #1d4ed8;
   padding: 3px 8px;
   border-radius: 999px;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-accept-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  &:disabled { opacity: .7; cursor: wait; }
 }
 
 .offer-card {
