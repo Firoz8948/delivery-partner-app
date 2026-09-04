@@ -76,6 +76,9 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   private capWatchId?: string;
   private knownOfferIds = new Set<number>();
   private isFirstDpLoad = true;
+  private rememberedActives: DpOrder[] = [];
+  activeList = signal<DpOrder[]>([]);
+  expandedActiveId = signal<number | null>(null);
 
   ngOnInit() {
     this.refresh();
@@ -117,7 +120,10 @@ export class DpHomeComponent implements OnInit, OnDestroy {
 
         this.isFirstDpLoad = false;
         this.data.set(d);
-        this.hydrateOrderWork(this.activeOrders(d));
+        const actives = this.buildActiveList(d);
+        this.activeList.set(actives);
+        this.syncExpanded(actives);
+        this.hydrateOrderWork(actives);
       },
       error: (e) => this.error.set(e.error?.detail || 'Failed to load'),
     });
@@ -128,9 +134,79 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   }
 
   activeOrders(d: DpDashboard | null): DpOrder[] {
-    if (!d) return [];
-    if (d.active_orders?.length) return d.active_orders;
-    return d.active_order ? [d.active_order] : [];
+    if (this.activeList().length) return this.activeList();
+    return this.buildActiveList(d);
+  }
+
+  isExpanded(order: DpOrder): boolean {
+    if (this.activeList().length <= 1) return true;
+    return this.expandedActiveId() === order.id;
+  }
+
+  toggleActive(orderId: number) {
+    if (this.activeList().length <= 1) return;
+    this.expandedActiveId.set(orderId);
+  }
+
+  statusLabel(status: string): string {
+    if (status === 'picked_up') return 'Picked Up';
+    if (status === 'out_for_delivery') return 'Out for delivery';
+    if (status === 'ready') return 'Ready For Pickup';
+    if (status === 'accepted') return 'Order Accepted';
+    return status;
+  }
+
+  private mergeOrders(...groups: Array<DpOrder | DpOrder[] | null | undefined>): DpOrder[] {
+    const byId = new Map<number, DpOrder>();
+    for (const group of groups) {
+      const items = Array.isArray(group) ? group : group ? [group] : [];
+      for (const item of items) {
+        if (item?.id != null) byId.set(item.id, item);
+      }
+    }
+    return [...byId.values()].sort((a, b) => {
+      const aAt = a.created_at || '';
+      const bAt = b.created_at || '';
+      if (aAt !== bAt) return aAt.localeCompare(bAt);
+      return a.id - b.id;
+    });
+  }
+
+  private isActiveStatus(status: string | undefined): boolean {
+    return ['accepted', 'ready', 'picked_up', 'out_for_delivery'].includes(
+      (status || '').toLowerCase(),
+    );
+  }
+
+  private rememberActive(order: DpOrder | null | undefined) {
+    if (!order?.id) return;
+    this.rememberedActives = this.mergeOrders(this.rememberedActives, order);
+    this.activeList.set(this.mergeOrders(this.activeList(), order));
+  }
+
+  private buildActiveList(d: DpDashboard | null): DpOrder[] {
+    if (!d) return this.rememberedActives.filter((row) => this.isActiveStatus(row.status));
+    const fromApi = this.mergeOrders(d.active_orders, d.active_order);
+    if (d.active_orders && d.active_orders.length) {
+      this.rememberedActives = fromApi;
+      return fromApi;
+    }
+    const merged = this.mergeOrders(fromApi, this.rememberedActives).filter((row) =>
+      this.isActiveStatus(row.status),
+    );
+    this.rememberedActives = merged;
+    return merged;
+  }
+
+  private syncExpanded(orders: DpOrder[]) {
+    if (!orders.length) {
+      this.expandedActiveId.set(null);
+      return;
+    }
+    const current = this.expandedActiveId();
+    if (!current || !orders.some((row) => row.id === current)) {
+      this.expandedActiveId.set(orders[0].id);
+    }
   }
 
   w(o: DpOrder): OrderWork {
@@ -357,7 +433,11 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     this.notif.stopSound();
     this.busyId.set(o.id);
     this.api.accept(o.id).subscribe({
-      next: () => { this.busyId.set(null); this.refresh(); },
+      next: (res: any) => {
+        this.busyId.set(null);
+        this.rememberActive(res?.order || o);
+        this.refresh();
+      },
       error: (e) => { this.busyId.set(null); this.error.set(e.error?.detail || 'Accept failed'); },
     });
   }
@@ -374,7 +454,10 @@ export class DpHomeComponent implements OnInit, OnDestroy {
         return;
       }
       this.api.accept(orders[index].id).subscribe({
-        next: () => run(index + 1),
+        next: (res: any) => {
+          this.rememberActive(res?.order || orders[index]);
+          run(index + 1);
+        },
         error: (e) => {
           this.acceptingAll.set(false);
           this.error.set(e.error?.detail || 'Could not accept all orders');
@@ -584,7 +667,9 @@ export class DpHomeComponent implements OnInit, OnDestroy {
           delete next[o.id];
           return next;
         });
-        const remaining = this.activeOrders(this.data()).filter((item) => item.id !== o.id);
+        this.rememberedActives = this.rememberedActives.filter((item) => item.id !== o.id);
+        this.activeList.update((rows) => rows.filter((item) => item.id !== o.id));
+        const remaining = this.activeList();
         this.deliveredStayOnHome.set(remaining.length > 0);
         this.orderDelivered.set(true);
         this.refresh();

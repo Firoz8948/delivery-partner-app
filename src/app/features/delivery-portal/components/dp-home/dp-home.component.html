@@ -69,22 +69,44 @@
       </div>
     }
 
-    <!-- CURRENT ACTIVE ORDER SECTION -->
-    @for (a of activeOrders(d); track a.id) {
-      <section class="card order-card">
-        <div class="card-header">
+    <!-- ACTIVE ORDERS — every accepted job stays on screen -->
+    @if (activeList().length) {
+      <div class="active-orders-head">
+        <div class="card-header-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <h2>{{ activeList().length > 1 ? 'Active orders' : 'Current Order' }}</h2>
+        </div>
+        <span class="badge-count">{{ activeList().length }}</span>
+      </div>
+    }
+    @for (a of activeList(); track a.id) {
+      <section class="card order-card" [class.order-card--collapsed]="!isExpanded(a)" [class.order-card--multi]="activeList().length > 1">
+        <button
+          type="button"
+          class="order-card-toggle"
+          [disabled]="activeList().length <= 1"
+          (click)="toggleActive(a.id)">
           <div class="card-header-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <h2>{{ activeOrders(d).length > 1 ? ('Order #' + a.order_number) : 'Current Order' }}</h2>
+            <h2>Order #{{ a.order_number }}</h2>
+            @if (activeList().length > 1) {
+              <span class="order-card-chevron" [class.up]="isExpanded(a)">▾</span>
+            }
           </div>
           <span class="status-pill status-pill--{{ a.status }}">
-            {{ a.status === 'picked_up' ? 'Picked Up' : a.status === 'ready' ? 'Ready For Pickup' : a.status === 'accepted' ? 'Order Accepted' : a.status }}
+            {{ statusLabel(a.status) }}
           </span>
-        </div>
+        </button>
+        @if (!isExpanded(a)) {
+          <div class="order-card-summary">
+            <span>{{ a.restaurant }}</span>
+            <span>{{ collectText(a) }}</span>
+          </div>
+        }
 
+        @if (isExpanded(a)) {
         <!-- Distinct Structured Rows -->
         <div class="order-rows">
           <!-- Row 1: Order ID & Status -->
@@ -411,6 +433,7 @@
             }
           </div>
         }
+        }
       </section>
     }
 
@@ -540,7 +563,7 @@
             </div>
           </div>
           <div class="offer-actions">
-            <button type="button" class="btn-accept" [disabled]="busyId() === o.id || acceptingAll() || (!allowMultiple(d) && activeOrders(d).length > 0)" (click)="accept(o)">
+            <button type="button" class="btn-accept" [disabled]="busyId() === o.id || acceptingAll() || (!allowMultiple(d) && activeList().length > 0)" (click)="accept(o)">
               Accept Order
             </button>
             <button type="button" class="btn-reject" [disabled]="busyId() === o.id || acceptingAll()" (click)="reject(o)">

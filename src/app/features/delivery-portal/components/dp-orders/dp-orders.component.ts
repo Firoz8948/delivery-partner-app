@@ -1,15 +1,30 @@
 import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header/portal-page-header.component';
 import { Component, OnInit, computed, inject, signal, viewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.service';
 
 @Component({
   selector: 'app-dp-orders',
   standalone: true,
-  imports: [CommonModule, PortalPageHeaderComponent],
+  imports: [CommonModule, RouterModule, PortalPageHeaderComponent],
   template: `
     <div class="page">
       <app-portal-page-header eyebrow="DELIVERY LOG" title="My Orders" subtitle="Today's deliveries and past delivery history." tone="delivery" />
+
+      @if (actives().length) {
+        <p class="heading">Active orders ({{ actives().length }})</p>
+        @for (o of actives(); track o.id) {
+          <a class="active-row" routerLink="/deliverypartner/home">
+            <div>
+              <strong>{{ o.order_number }}</strong>
+              <span class="status-pill live">{{ o.status.replace('_', ' ') }}</span>
+              <p>{{ o.restaurant }}</p>
+            </div>
+            <span class="open-home">Open</span>
+          </a>
+        }
+      }
 
       <div class="toolbar">
         <button type="button" [class.on]="view()==='today'" (click)="loadToday()">Today</button>
@@ -137,6 +152,17 @@ import { DeliveryPortalService, DpOrder } from '../../services/delivery-portal.s
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .order-card { border-bottom: 1px solid #eee; }
+    .active-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      margin: 0 0 10px; padding: 12px 14px; text-decoration: none;
+      border: 1px solid #fecaca; border-radius: 12px; background: #fff7f7;
+      color: inherit; animation: row-in 180ms ease-out;
+    }
+    .active-row p { margin: 4px 0 0; }
+    .open-home { font-size: 12px; font-weight: 800; color: #dc2626; }
+    .status-pill.live { color: #9a3412; background: #ffedd5; }
+    @keyframes row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .active-row { animation: none; } }
     .row {
       width: 100%; display: flex; justify-content: space-between; gap: 12px;
       padding: 12px 0; border: 0; background: transparent; text-align: left; cursor: pointer;
@@ -181,6 +207,7 @@ export class DpOrdersComponent implements OnInit {
   private dateInput = viewChild<ElementRef<HTMLInputElement>>('dateInput');
 
   orders = signal<DpOrder[]>([]);
+  actives = signal<DpOrder[]>([]);
   view = signal<'today' | 'history'>('today');
   dateStr = signal(this.todayIso());
   dateFilter = signal<string | null>(this.todayIso());
@@ -199,7 +226,16 @@ export class DpOrdersComponent implements OnInit {
     Math.min(this.page() * this.pageSize(), this.total()),
   );
 
-  ngOnInit() { this.loadToday(); }
+  ngOnInit() {
+    this.loadToday();
+    this.api.dashboard().subscribe({
+      next: (d) => {
+        const fromList = d.active_orders || [];
+        this.actives.set(fromList.length ? fromList : (d.active_order ? [d.active_order] : []));
+      },
+      error: () => {},
+    });
+  }
 
   todayIso(): string {
     const d = new Date();
