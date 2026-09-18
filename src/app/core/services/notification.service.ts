@@ -1,20 +1,31 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, effect, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { PushNotifications, Token, ActionPerformed, PushNotificationSchema } from '@capacitor/push-notifications';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
+
+/** Must match backend `fcm.py` urgent channel (immutable on Android — v2 resets sound). */
+const URGENT_CHANNEL = 'lalganjeats_urgent_v2';
+const TOKEN_CACHE_KEY = 'le_delivery_fcm_token';
 
 @Injectable({
   providedIn: 'root'
 })
 export class NotificationService {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   private permissionsRequested = false;
+  private pushInitialized = false;
 
   constructor() {
     this.initPermissions();
     this.initPushNotifications();
+
+    effect(() => {
+      if (this.auth.currentUser()) this.syncCachedTokenNow();
+    });
   }
 
   async initPermissions() {
@@ -25,12 +36,11 @@ export class NotificationService {
           await LocalNotifications.requestPermissions();
         }
 
-        // Create high-importance notification channels with loud sound & vibration for killed/background app wake-up
         try {
           await LocalNotifications.createChannel({
-            id: 'lalganjeats_orders',
-            name: 'LalganjEats Orders',
-            description: 'Instant notifications for incoming orders and deliveries',
+            id: URGENT_CHANNEL,
+            name: 'Urgent Delivery Offers',
+            description: 'Loud heads-up alerts for new delivery offers',
             importance: 5,
             visibility: 1,
             sound: 'order_alert',
@@ -40,8 +50,8 @@ export class NotificationService {
           });
           await LocalNotifications.createChannel({
             id: 'lalganjeats_urgent_orders',
-            name: 'Urgent Delivery Offers',
-            description: 'Loud notifications for incoming delivery offers',
+            name: 'Urgent Delivery Offers (legacy)',
+            description: 'Legacy channel — prefer Urgent Delivery Offers',
             importance: 5,
             visibility: 1,
             sound: 'order_alert',
@@ -59,7 +69,8 @@ export class NotificationService {
   }
 
   async initPushNotifications() {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform() || this.pushInitialized) return;
+    this.pushInitialized = true;
 
     try {
       let permStatus = await PushNotifications.checkPermissions();
@@ -75,6 +86,7 @@ export class NotificationService {
 
       PushNotifications.addListener('registration', (token: Token) => {
         console.log('Delivery FCM Token registered:', token.value);
+        try { localStorage.setItem(TOKEN_CACHE_KEY, token.value); } catch (_) {}
         this.sendFcmTokenToBackend(token.value);
       });
 
@@ -86,10 +98,6 @@ export class NotificationService {
         'pushNotificationReceived',
         (notification: PushNotificationSchema) => {
           console.log('Delivery push received:', notification);
-          // Android suppresses tray notifs while the app is foregrounded, so
-          // we schedule a local one on the urgent channel — this triggers
-          // the loud `order_alert` sound + heads-up banner even when the DP
-          // is actively using the app.
           try {
             LocalNotifications.schedule({
               notifications: [
@@ -97,7 +105,7 @@ export class NotificationService {
                   id: Math.floor(Math.random() * 100000),
                   title: notification.title || 'New order',
                   body: notification.body || 'Tap to view',
-                  channelId: 'lalganjeats_urgent_orders',
+                  channelId: URGENT_CHANNEL,
                   sound: 'order_alert',
                   extra: notification.data ?? null,
                 },
@@ -114,12 +122,23 @@ export class NotificationService {
           console.log('Delivery push action performed:', notification);
         }
       );
+
+      this.syncCachedTokenNow();
     } catch (e) {
       console.warn('PushNotifications initialization failed:', e);
     }
   }
 
+  syncCachedTokenNow(): void {
+    try {
+      const cached = localStorage.getItem(TOKEN_CACHE_KEY);
+      if (cached) this.sendFcmTokenToBackend(cached);
+    } catch (_) {}
+  }
+
   private sendFcmTokenToBackend(fcmToken: string) {
+    if (!fcmToken?.trim()) return;
+    if (!this.auth.currentUser()) return;
     const url = `${environment.apiBaseUrl}/delivery/fcm-token`;
     this.http.post(url, { fcm_token: fcmToken }).subscribe({
       next: () => console.log('Delivery FCM token synced with backend successfully'),
@@ -128,7 +147,7 @@ export class NotificationService {
   }
 
   async notifyNewOffer(orderNumber?: string) {
-    const title = '🛵 New Delivery Offer!';
+    const title = 'New Delivery Offer!';
     const body = orderNumber
       ? `Order #${orderNumber}: New delivery offer available. Accept now!`
       : 'New delivery offer available. Tap to accept now!';
@@ -142,7 +161,7 @@ export class NotificationService {
               id: Math.floor(Math.random() * 100000),
               title,
               body,
-              channelId: 'lalganjeats_urgent_orders',
+              channelId: URGENT_CHANNEL,
               sound: 'order_alert',
               actionTypeId: '',
               extra: null
@@ -162,7 +181,6 @@ export class NotificationService {
   private activeOscillators: any[] = [];
 
   stopSound() {
-    // 1. Stop HTML5 audio playback immediately
     if (this.activeAudio) {
       try {
         this.activeAudio.pause();
@@ -171,7 +189,6 @@ export class NotificationService {
       this.activeAudio = null;
     }
 
-    // 2. Stop WebAudio synthesized chimes immediately
     if (this.activeOscillators.length > 0) {
       for (const osc of this.activeOscillators) {
         try { osc.stop(); } catch (_) {}
@@ -183,17 +200,14 @@ export class NotificationService {
       this.activeAudioCtx = null;
     }
 
-    // 3. Stop hardware vibration
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate(0); } catch (_) {}
     }
   }
 
   private playChimeSound() {
-    // Stop any previously playing alert so it doesn't overlap
     this.stopSound();
 
-    // 1. Try playing custom audio sound file (e.g. assets/sounds/order_alert.mp3)
     try {
       const audio = new Audio('assets/sounds/order_alert.mp3');
       audio.volume = 1.0;
@@ -204,7 +218,6 @@ export class NotificationService {
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Fallback to WebAudio synth chime if MP3 file is not loaded/blocked
           if (this.activeAudio === audio) this.activeAudio = null;
           this.playSynthChime();
         });
@@ -213,7 +226,6 @@ export class NotificationService {
       this.playSynthChime();
     }
 
-    // 2. Hardware vibration pattern [vibrate, pause, vibrate]
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
         navigator.vibrate([400, 200, 400, 200, 600]);
@@ -229,7 +241,6 @@ export class NotificationService {
       this.activeAudioCtx = audioCtx;
       this.activeOscillators = [];
 
-      // Play 3 loud, rapid, attention-grabbing chime burst pairs (like order alert sound)
       const playBeep = (freq1: number, freq2: number, startTime: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -250,19 +261,13 @@ export class NotificationService {
       };
 
       const now = audioCtx.currentTime;
-      // Burst 1
       playBeep(880, 1320, now, 0.18);
       playBeep(1320, 1760, now + 0.12, 0.22);
-
-      // Burst 2
       playBeep(880, 1320, now + 0.40, 0.18);
       playBeep(1320, 1760, now + 0.52, 0.22);
-
-      // Burst 3
       playBeep(988, 1480, now + 0.80, 0.18);
       playBeep(1480, 1976, now + 0.92, 0.35);
 
-      // Auto clean up after completion
       setTimeout(() => {
         if (this.activeAudioCtx === audioCtx) {
           try { audioCtx.close(); } catch (_) {}
