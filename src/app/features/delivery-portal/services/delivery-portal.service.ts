@@ -255,6 +255,8 @@ export class DeliveryPortalService {
       order_id: session.razorpay_order_id,
       prefill: session.prefill || {},
       theme: { color: '#c41e3a' },
+      // Required so Razorpay shows UPI inside Android WebView / Capacitor APK.
+      webview_intent: true,
       handler: (response: {
         razorpay_order_id: string;
         razorpay_payment_id: string;

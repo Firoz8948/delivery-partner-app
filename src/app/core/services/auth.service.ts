@@ -25,6 +25,7 @@ export class AuthService {
 
   private apiUrl   = `${environment.apiBaseUrl}/auth`;
   currentUser      = signal<AuthUser | null>(this.loadFromStorage());
+  private sessionExpiryHandling = false;
 
   // ── Computed helpers ──────────────────────────────────
   isLoggedIn    = computed(() => !!this.currentUser());
@@ -220,6 +221,25 @@ export class AuthService {
     localStorage.removeItem('le_token');
     this.currentUser.set(null);
     this.router.navigateByUrl(getDefaultLandingPath());
+  }
+
+  /** Auto logout when API returns 401 for an expired/invalid JWT. */
+  handleSessionExpired(): void {
+    if (this.sessionExpiryHandling) return;
+    if (!this.getToken() && !this.currentUser()) return;
+
+    this.sessionExpiryHandling = true;
+    localStorage.removeItem('le_admin_backup');
+    localStorage.removeItem('le_superadmin_backup');
+    localStorage.removeItem('le_user');
+    localStorage.removeItem('le_token');
+    this.currentUser.set(null);
+
+    this.router
+      .navigate(['/auth/delivery-login'], { queryParams: { reason: 'session' } })
+      .finally(() => {
+        this.sessionExpiryHandling = false;
+      });
   }
 
   getToken(): string | null {

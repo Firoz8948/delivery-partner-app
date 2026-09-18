@@ -44,6 +44,10 @@ export class DeliveryLoginComponent {
       if (token) {
         this.auth.saveTokenDirectly(token, 'delivery_partner');
         this.router.navigate(['/deliverypartner/home']);
+        return;
+      }
+      if (params['reason'] === 'session') {
+        this.error.set('Your session expired. Please log in again to continue.');
       }
     });
 
