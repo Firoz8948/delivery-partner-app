@@ -576,7 +576,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  /** Ask backend for a PayU-hosted UPI URL, show QR modal, then poll for success. */
+  /** Ask backend for a Razorpay Payment Link URL, show QR modal, then poll for success. */
   openUpiQr(a: DpOrder) {
     const work = this.w(a);
     if (work.onlineAmount <= 0) return;

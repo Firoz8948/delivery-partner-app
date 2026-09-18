@@ -120,9 +120,40 @@ export class DpEarningsComponent implements OnInit {
     this.errorMsg = '';
     this.clearingCash = true;
     this.deliveryPortal.initiateCashRemit().subscribe({
-      next: (pay) => {
-        this.clearingCash = false;
-        this.deliveryPortal.redirectToPayU(pay.payment_url, pay.fields);
+      next: (session) => {
+        try {
+          this.deliveryPortal.openRazorpayCheckout(
+            session,
+            (pay) => {
+              this.deliveryPortal
+                .verifyCashRemit({
+                  remittance_id: session.remittance_id!,
+                  razorpay_order_id: pay.razorpay_order_id,
+                  razorpay_payment_id: pay.razorpay_payment_id,
+                  razorpay_signature: pay.razorpay_signature,
+                })
+                .subscribe({
+                  next: () => {
+                    this.clearingCash = false;
+                    this.successMsg = 'Cash remittance paid successfully.';
+                    this.loadAll();
+                  },
+                  error: (err) => {
+                    this.clearingCash = false;
+                    this.errorMsg =
+                      err.error?.detail || 'Payment received but remittance verify failed.';
+                  },
+                });
+            },
+            () => {
+              this.clearingCash = false;
+              this.errorMsg = 'Payment cancelled.';
+            },
+          );
+        } catch {
+          this.clearingCash = false;
+          this.errorMsg = 'Could not open Razorpay. Try again.';
+        }
       },
       error: (err) => {
         this.clearingCash = false;
