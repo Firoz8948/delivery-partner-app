@@ -125,8 +125,12 @@ export class DeliveryPortalService {
     return this.http.patch<{ is_online: boolean }>(`${this.api}/toggle-online`, {});
   }
 
-  accept(orderId: number) {
-    return this.http.patch(`${this.api}/orders/${orderId}/accept`, {});
+  /** Accept an offer. `fix` is the one-shot GPS position captured on tap. */
+  accept(
+    orderId: number,
+    fix?: { latitude: number; longitude: number; accuracy_m?: number | null } | null,
+  ) {
+    return this.http.patch(`${this.api}/orders/${orderId}/accept`, fix ?? {});
   }
 
   reject(orderId: number) {
@@ -278,7 +282,12 @@ export class DeliveryPortalService {
     rzp.open();
   }
 
-  pingLocation(lat: number, lng: number) {
-    return this.http.post(this.locApi, { latitude: lat, longitude: lng });
+  /** Store the rider's GPS in our DB (free — never forwarded to Google). */
+  pingLocation(
+    lat: number,
+    lng: number,
+    extra?: { order_id?: number | null; accuracy_m?: number | null; source?: string },
+  ) {
+    return this.http.post(this.locApi, { latitude: lat, longitude: lng, ...(extra || {}) });
   }
 }

@@ -1,4 +1,4 @@
-import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header/portal-page-header.component';
+﻿import { PortalPageHeaderComponent } from '../../../../shared/portal-page-header/portal-page-header.component';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +10,8 @@ import {
   DpOrder,
 } from '../../services/delivery-portal.service';
 
-import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
-
 import { NotificationService } from '../../../../core/services/notification.service';
-import { DpOrderLiveMapComponent } from '../dp-order-live-map/dp-order-live-map.component';
+import { GpsFix, RiderLocationService } from '../../../../core/services/rider-location.service';
 
 interface OrderWork {
   otp: string;
@@ -35,7 +32,6 @@ interface OrderWork {
     CommonModule,
     FormsModule,
     PortalPageHeaderComponent,
-    DpOrderLiveMapComponent,
     QRCodeComponent,
   ],
   templateUrl: './dp-home.component.html',
@@ -45,6 +41,8 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   private api = inject(DeliveryPortalService);
   private notif = inject(NotificationService);
   private router = inject(Router);
+  /** Root-scoped: keeps pinging while the rider switches tabs / uses Google Maps. */
+  riderLoc = inject(RiderLocationService);
 
   data = signal<DpDashboard | null>(null);
   error = signal('');
@@ -64,16 +62,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   private qrPoll?: ReturnType<typeof setInterval>;
   private qrOrderId: number | null = null;
 
-  // Live Location Signals for Hero Banner
-  currentLat = signal<number | null>(null);
-  currentLng = signal<number | null>(null);
-  locationName = signal<string>('');
-  locationActive = signal<boolean>(false);
-  requestingLocation = signal<boolean>(false);
-
   private poll?: ReturnType<typeof setInterval>;
-  private geoWatch?: number;
-  private capWatchId?: string;
   private knownOfferIds = new Set<number>();
   private isFirstDpLoad = true;
   private rememberedActives: DpOrder[] = [];
@@ -81,21 +70,16 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   expandedActiveId = signal<number | null>(null);
 
   ngOnInit() {
+    // No GPS is read here: location is captured once on Accept and then
+    // every 2 minutes only while an order is picked up.
     this.refresh();
     this.poll = setInterval(() => this.refresh(), 5000);
-    // Snappy single-click location fetch
-    this.fetchFastLocation().catch(() => {});
   }
 
   ngOnDestroy() {
     if (this.poll) clearInterval(this.poll);
     if (this.qrPoll) clearInterval(this.qrPoll);
-    if (this.geoWatch != null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(this.geoWatch);
-    }
-    if (this.capWatchId) {
-      Geolocation.clearWatch({ id: this.capWatchId }).catch(() => {});
-    }
+    // Delivery pings intentionally keep running (root service).
   }
 
   refresh() {
@@ -124,9 +108,45 @@ export class DpHomeComponent implements OnInit, OnDestroy {
         this.activeList.set(actives);
         this.syncExpanded(actives);
         this.hydrateOrderWork(actives);
+        this.syncLocationTracking(actives);
       },
       error: (e) => this.error.set(e.error?.detail || 'Failed to load'),
     });
+  }
+
+  /** Start 2-minute pings while any order is picked up; stop otherwise. */
+  private syncLocationTracking(actives: DpOrder[]) {
+    const pickedUp = actives
+      .filter((o) => this.isPickedUp(o))
+      .map((o) => o.id);
+    if (pickedUp.length) {
+      void this.riderLoc.startDeliveryTracking(pickedUp);
+    } else {
+      void this.riderLoc.stopDeliveryTracking();
+    }
+  }
+
+  isPickedUp(o: DpOrder): boolean {
+    const s = (o.status || '').toLowerCase();
+    return s === 'picked_up' || s === 'out_for_delivery';
+  }
+
+  /** Directions deep link: Google Maps app routes from the rider's live GPS. */
+  navUrl(lat?: number | null, lng?: number | null, address?: string | null): string | null {
+    if (lat != null && lng != null) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    }
+    if (address) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+    }
+    return null;
+  }
+
+  lastPingLabel(): string {
+    const at = this.riderLoc.lastSentAt();
+    if (!at) return 'sending first update...';
+    const mins = Math.round((Date.now() - at) / 60000);
+    return mins <= 0 ? 'updated just now' : `updated ${mins} min ago`;
   }
 
   allowMultiple(d: DpDashboard): boolean {
@@ -286,153 +306,16 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     return `tel:+${digits.replace(/^0+/, '')}`;
   }
 
-  async requestLocationPermission() {
-    if (this.requestingLocation()) return;
-    this.requestingLocation.set(true);
-    this.error.set('');
-
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const check = await Geolocation.checkPermissions();
-        if (check.location !== 'granted' && check.coarseLocation !== 'granted') {
-          await Geolocation.requestPermissions();
-        }
-      }
-      await this.fetchFastLocation();
-    } catch (e: any) {
-      console.warn('Location request error:', e);
-      this.error.set('Could not fetch GPS location. Please ensure Location is enabled in phone settings.');
-    } finally {
-      this.requestingLocation.set(false);
-    }
-  }
-
-  async fetchFastLocation(): Promise<void> {
-    // 1. Try Native Capacitor Geolocation (Snappy on Android)
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const pos = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 15000,
-        });
-        if (pos && pos.coords) {
-          this.handleGeoPos(pos.coords.latitude, pos.coords.longitude);
-          this.startLiveWatch();
-          return;
-        }
-      } catch (e) {
-        console.warn('High accuracy failed, attempting coarse:', e);
-        try {
-          const coarse = await Geolocation.getCurrentPosition({
-            enableHighAccuracy: false,
-            timeout: 3000,
-            maximumAge: 60000,
-          });
-          if (coarse && coarse.coords) {
-            this.handleGeoPos(coarse.coords.latitude, coarse.coords.longitude);
-            this.startLiveWatch();
-            return;
-          }
-        } catch (e2) {
-          console.warn('Coarse location also failed:', e2);
-        }
-      }
-    }
-
-    // 2. Browser Fallback
-    if (navigator.geolocation) {
-      return new Promise<void>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            this.handleGeoPos(pos.coords.latitude, pos.coords.longitude);
-            this.startLiveWatch();
-            resolve();
-          },
-          (err) => {
-            navigator.geolocation.getCurrentPosition(
-              (p2) => {
-                this.handleGeoPos(p2.coords.latitude, p2.coords.longitude);
-                this.startLiveWatch();
-                resolve();
-              },
-              (err2) => {
-                console.warn('Browser GPS error:', err2);
-                reject(err2);
-              },
-              { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
-            );
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 15000 }
-        );
-      });
-    }
-  }
-
-  private startLiveWatch() {
-    if (Capacitor.isNativePlatform()) {
-      Geolocation.watchPosition(
-        { enableHighAccuracy: true, maximumAge: 5000 },
-        (pos: any) => {
-          if (pos && pos.coords) {
-            this.handleGeoPos(pos.coords.latitude, pos.coords.longitude);
-          }
-        }
-      ).then((id: string) => {
-        this.capWatchId = id;
-      }).catch(() => {});
-    } else if (navigator.geolocation) {
-      if (this.geoWatch != null) navigator.geolocation.clearWatch(this.geoWatch);
-      this.geoWatch = navigator.geolocation.watchPosition(
-        (pos) => this.handleGeoPos(pos.coords.latitude, pos.coords.longitude),
-        () => {},
-        { enableHighAccuracy: true, maximumAge: 5000 }
-      );
-    }
-  }
-
-  private handleGeoPos(lat: number, lng: number) {
-    this.currentLat.set(lat);
-    this.currentLng.set(lng);
-    this.locationActive.set(true);
-
-    if (!this.locationName()) {
-      this.locationName.set('Lalganj Sector');
-    }
-
-    // Ping backend with updated rider coordinates
-    this.api.pingLocation(lat, lng).subscribe({ error: () => {} });
-
-    // Reverse geocode locality name in background
-    this.reverseGeocodeLocality(lat, lng);
-  }
-
-  private reverseGeocodeLocality(lat: number, lng: number) {
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.address) {
-          const loc = data.address.suburb ||
-                      data.address.neighbourhood ||
-                      data.address.village ||
-                      data.address.town ||
-                      data.address.city ||
-                      data.address.county ||
-                      'Lalganj Sector';
-          this.locationName.set(loc);
-        }
-      })
-      .catch(() => {});
-  }
-
   toggleOnline() {
     this.api.toggleOnline().subscribe({ next: () => this.refresh() });
   }
 
-  accept(o: DpOrder) {
+  async accept(o: DpOrder) {
     this.notif.stopSound();
     this.busyId.set(o.id);
-    this.api.accept(o.id).subscribe({
+    // Single GPS fix on Accept — the only location read before pickup.
+    const fix: GpsFix | null = await this.riderLoc.captureOnce().catch(() => null);
+    this.api.accept(o.id, fix).subscribe({
       next: (res: any) => {
         this.busyId.set(null);
         this.rememberActive(res?.order || o);
@@ -442,18 +325,19 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  acceptAll(orders: DpOrder[]) {
+  async acceptAll(orders: DpOrder[]) {
     if (!orders.length || this.acceptingAll()) return;
     this.notif.stopSound();
     this.acceptingAll.set(true);
     this.error.set('');
+    const fix: GpsFix | null = await this.riderLoc.captureOnce().catch(() => null);
     const run = (index: number) => {
       if (index >= orders.length) {
         this.acceptingAll.set(false);
         this.refresh();
         return;
       }
-      this.api.accept(orders[index].id).subscribe({
+      this.api.accept(orders[index].id, fix).subscribe({
         next: (res: any) => {
           this.rememberActive(res?.order || orders[index]);
           run(index + 1);
@@ -691,17 +575,12 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  openDirections(lat?: number | null, lng?: number | null, address?: string) {
-    if (lat != null && lng != null) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
-        '_system',
-      );
-    } else if (address) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
-        '_system',
-      );
-    }
+  /**
+   * Opens the Google Maps APP with driving directions from the rider's live
+   * position (no origin given → Maps uses device GPS). Costs us nothing.
+   */
+  openDirections(lat?: number | null, lng?: number | null, address?: string | null) {
+    const url = this.navUrl(lat, lng, address);
+    if (url) window.open(url, '_system');
   }
 }

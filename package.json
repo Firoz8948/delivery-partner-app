@@ -20,6 +20,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@capacitor-community/background-geolocation": "^1.2.26",
     "@capacitor/android": "^7.6.8",
     "@capacitor/cli": "^7.6.8",
     "@capacitor/core": "^7.6.8",
