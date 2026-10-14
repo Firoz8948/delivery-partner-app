@@ -1,0 +1,56 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  EC2_HOST: ${{ vars.EC2_HOST || '15.252.131.67' }}
+  EC2_USER: ubuntu
+  EC2_HOST_KEY: ${{ vars.EC2_HOST_KEY || 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEx0iE7Z+/ooDKXYWf6VqLoL8DzVI2NqynwG20CZnD2t' }}
+  DIST: dist/delivery-partner-app/browser
+  WEB_DIR: /var/www/lalganjeats/delivery-partner-apk
+
+jobs:
+  deploy:
+    if: ${{ !contains(github.event.head_commit.message, '[skip deploy]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: test -f "$DIST/index.html"
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::error::Add the DEPLOY_SSH_KEY secret (Settings > Secrets and variables > Actions)"
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s %s\n' "$EC2_HOST" "$EC2_HOST_KEY" > ~/.ssh/known_hosts
+      # New hashed bundles first, then index.html, then prune old files, so a
+      # visitor never gets an index.html that points at files not uploaded yet.
+      - name: Publish to EC2
+        run: |
+          target="$EC2_USER@$EC2_HOST:$WEB_DIR/"
+          rsync -az --exclude index.html "$DIST/" "$target"
+          rsync -az "$DIST/index.html" "$target"
+          rsync -az --delete "$DIST/" "$target"
+          echo "Published $(git log -1 --format='%h %s') to $WEB_DIR"
