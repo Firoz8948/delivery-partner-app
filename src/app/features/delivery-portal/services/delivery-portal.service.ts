@@ -45,6 +45,21 @@ export interface DpOrder {
   }[];
   created_at: string | null;
   delivered_at?: string | null;
+  /** Grocery order from several stores: pick up at every stop, deliver once. */
+  is_multi_store?: boolean;
+  pickups?: DpPickup[];
+}
+
+export interface DpPickup {
+  order_id: number;
+  order_number: string;
+  status: string;
+  restaurant: string | null;
+  restaurant_address: string | null;
+  restaurant_phone: string | null;
+  restaurant_lat: number | null;
+  restaurant_lng: number | null;
+  items: { name: string; quantity: number; variant_label?: string | null }[];
 }
 
 export interface DpOrdersPage {

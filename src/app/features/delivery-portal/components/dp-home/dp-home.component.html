@@ -189,7 +189,31 @@
         </div>
 
         <!-- Before pickup: plain directions link to the restaurant (no in-app map) -->
-        @if (a.status === 'accepted' || a.status === 'ready') {
+        @if ((a.status === 'accepted' || a.status === 'ready') && a.is_multi_store && a.pickups?.length) {
+          <div class="nav-card">
+            <p class="hint-info">Pick up from all {{ a.pickups!.length }} stores, then deliver once.</p>
+            @for (p of a.pickups; track p.order_id; let i = $index) {
+              <div class="pickup-stop">
+                <div class="pickup-stop__head">
+                  <strong>{{ i + 1 }}. {{ p.restaurant }}</strong>
+                  <span class="badge-pill" [class.prepaid-pill]="p.status === 'ready'">
+                    {{ p.status === 'ready' ? 'Ready' : 'Packing' }}
+                  </span>
+                </div>
+                <p class="pickup-stop__meta">{{ p.order_number }} · {{ p.items.length }} item(s)</p>
+                @if (p.restaurant_address) {
+                  <p class="nav-card__addr">📍 {{ p.restaurant_address }}</p>
+                }
+                @if (navUrl(p.restaurant_lat ?? null, p.restaurant_lng ?? null, p.restaurant_address || p.restaurant)) {
+                  <button type="button" class="btn-navigate"
+                          (click)="openDirections(p.restaurant_lat ?? null, p.restaurant_lng ?? null, p.restaurant_address || p.restaurant)">
+                    <span>Open {{ p.restaurant }} in Google Maps</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        } @else if (a.status === 'accepted' || a.status === 'ready') {
           <div class="nav-card">
             @if (a.restaurant_address) {
               <p class="nav-card__addr">📍 {{ a.restaurant_address }}</p>

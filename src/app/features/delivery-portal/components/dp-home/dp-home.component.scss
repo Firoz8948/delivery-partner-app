@@ -421,6 +421,28 @@
 }
 
 /* Navigation card — replaces the in-app Google map (₹0: opens the Maps app) */
+.pickup-stop {
+  padding: 10px 0;
+  border-top: 1px dashed #e2e8f0;
+
+  &:first-of-type {
+    border-top: none;
+  }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__meta {
+    margin: 2px 0 4px;
+    font-size: 12px;
+    color: #64748b;
+  }
+}
+
 .nav-card {
   margin: 14px 0;
   padding: 12px 14px;
