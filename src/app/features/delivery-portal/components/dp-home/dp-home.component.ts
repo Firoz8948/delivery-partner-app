@@ -59,8 +59,13 @@ export class DpHomeComponent implements OnInit, OnDestroy {
   qrTxnId = signal<string>('');
   qrCheckingStatus = signal(false);
   qrError = signal<string>('');
+  qrSecondsLeft = signal(0);
+  qrLinkCopied = signal(false);
   private qrPoll?: ReturnType<typeof setInterval>;
+  private qrTick?: ReturnType<typeof setInterval>;
+  private qrExpiresAtMs = 0;
   private qrOrderId: number | null = null;
+  private qrOrder: DpOrder | null = null;
 
   private poll?: ReturnType<typeof setInterval>;
   private knownOfferIds = new Set<number>();
@@ -78,7 +83,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.poll) clearInterval(this.poll);
-    if (this.qrPoll) clearInterval(this.qrPoll);
+    this.stopQrTimers();
     // Delivery pings intentionally keep running (root service).
   }
 
@@ -466,10 +471,14 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     if (work.onlineAmount <= 0) return;
     if (this.qrLoading()) return;
 
+    this.stopQrTimers();
     this.qrError.set('');
     this.qrCodeUrl.set(null);
     this.qrTxnId.set('');
+    this.qrSecondsLeft.set(0);
+    this.qrLinkCopied.set(false);
     this.qrOrderId = a.id;
+    this.qrOrder = a;
     this.qrLoading.set(true);
     this.qrModalOpen.set(true);
 
@@ -478,7 +487,7 @@ export class DpHomeComponent implements OnInit, OnDestroy {
         this.qrLoading.set(false);
         this.qrCodeUrl.set(res.qr_url);
         this.qrTxnId.set(res.txnid);
-        this.startQrPolling(a.id, res.txnid);
+        this.startQrTimers(this.expirySeconds(res.expires_in_seconds, res.expires_at));
       },
       error: (e) => {
         this.qrLoading.set(false);
@@ -487,17 +496,68 @@ export class DpHomeComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Regenerate a fresh payment link (after expiry or a failed attempt). */
+  refreshUpiQr() {
+    if (this.qrOrder) this.openUpiQr(this.qrOrder);
+  }
+
   closeQrModal() {
     this.qrModalOpen.set(false);
+    this.stopQrTimers();
+  }
+
+  qrExpired(): boolean {
+    return !!this.qrCodeUrl() && this.qrSecondsLeft() <= 0;
+  }
+
+  qrCountdown(): string {
+    const s = Math.max(0, this.qrSecondsLeft());
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  async copyQrLink() {
+    const url = this.qrCodeUrl();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      this.qrLinkCopied.set(true);
+      setTimeout(() => this.qrLinkCopied.set(false), 2000);
+    } catch {
+      this.qrLinkCopied.set(false);
+    }
+  }
+
+  private expirySeconds(expiresIn?: number, expiresAt?: string | null): number {
+    if (expiresIn && expiresIn > 0) return expiresIn;
+    const at = expiresAt ? Date.parse(expiresAt) : NaN;
+    return Number.isFinite(at) ? Math.max(0, Math.round((at - Date.now()) / 1000)) : 15 * 60;
+  }
+
+  private startQrTimers(seconds: number) {
+    this.stopQrTimers();
+    this.qrExpiresAtMs = Date.now() + seconds * 1000;
+    this.qrSecondsLeft.set(seconds);
+    this.qrPoll = setInterval(() => this.checkQrPaymentNow(), 3500);
+    this.qrTick = setInterval(() => {
+      const left = Math.max(0, Math.round((this.qrExpiresAtMs - Date.now()) / 1000));
+      this.qrSecondsLeft.set(left);
+      if (left <= 0) {
+        // One last check in case the payment landed right before expiry.
+        this.checkQrPaymentNow();
+        this.stopQrTimers();
+      }
+    }, 1000);
+  }
+
+  private stopQrTimers() {
     if (this.qrPoll) {
       clearInterval(this.qrPoll);
       this.qrPoll = undefined;
     }
-  }
-
-  private startQrPolling(orderId: number, txnid: string) {
-    if (this.qrPoll) clearInterval(this.qrPoll);
-    this.qrPoll = setInterval(() => this.checkQrPaymentNow(), 3500);
+    if (this.qrTick) {
+      clearInterval(this.qrTick);
+      this.qrTick = undefined;
+    }
   }
 
   checkQrPaymentNow() {

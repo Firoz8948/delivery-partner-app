@@ -77,6 +77,8 @@ export interface OnlineCollectionInitResponse {
   qr_url: string;            // Razorpay payment-link short_url for QR
   payment_page_url: string;
   expires_at: string | null;
+  /** Link lifetime from now; independent of the phone's clock. */
+  expires_in_seconds?: number;
 }
 
 /** Polled while customer completes UPI payment on their phone. */

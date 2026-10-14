@@ -8,6 +8,10 @@ import { AuthService } from './auth.service';
 
 /** Must match backend `fcm.py` urgent channel (immutable on Android — v2 resets sound). */
 const URGENT_CHANNEL = 'lalganjeats_urgent_v2';
+/** Offer channel; native builds create it on the alarm stream (OfferAlertChannels.java). */
+const OFFER_CHANNEL = 'lalganjeats_offer_alarm_v3';
+/** Push + 5s dashboard poll both report the same offer; ring once. */
+const ALERT_DEDUPE_MS = 8000;
 const TOKEN_CACHE_KEY = 'le_delivery_fcm_token';
 
 @Injectable({
@@ -18,10 +22,12 @@ export class NotificationService {
   private auth = inject(AuthService);
   private permissionsRequested = false;
   private pushInitialized = false;
+  private lastAlertAt = 0;
+  private notificationsGranted = false;
 
   constructor() {
-    this.initPermissions();
-    this.initPushNotifications();
+    // Sequential: two concurrent Android permission prompts make one fail.
+    void this.initPermissions().then(() => this.initPushNotifications());
 
     effect(() => {
       if (this.auth.currentUser()) this.syncCachedTokenNow();
@@ -31,12 +37,24 @@ export class NotificationService {
   async initPermissions() {
     if (Capacitor.isNativePlatform() && !this.permissionsRequested) {
       try {
-        const perm = await LocalNotifications.checkPermissions();
+        let perm = await LocalNotifications.checkPermissions();
         if (perm.display !== 'granted') {
-          await LocalNotifications.requestPermissions();
+          perm = await LocalNotifications.requestPermissions();
         }
+        this.notificationsGranted = perm.display === 'granted';
 
         try {
+          await LocalNotifications.createChannel({
+            id: OFFER_CHANNEL,
+            name: 'New delivery offers (loud)',
+            description: 'Rings for every new delivery offer',
+            importance: 5,
+            visibility: 1,
+            sound: 'order_alert',
+            vibration: true,
+            lights: true,
+            lightColor: '#FF0000',
+          });
           await LocalNotifications.createChannel({
             id: URGENT_CHANNEL,
             name: 'Urgent Delivery Offers',
@@ -98,20 +116,8 @@ export class NotificationService {
         'pushNotificationReceived',
         (notification: PushNotificationSchema) => {
           console.log('Delivery push received:', notification);
-          try {
-            LocalNotifications.schedule({
-              notifications: [
-                {
-                  id: Math.floor(Math.random() * 100000),
-                  title: notification.title || 'New order',
-                  body: notification.body || 'Tap to view',
-                  channelId: URGENT_CHANNEL,
-                  sound: 'order_alert',
-                  extra: notification.data ?? null,
-                },
-              ],
-            });
-          } catch (_) {}
+          // presentationOptions 'alert' already shows the push on its channel.
+          this.lastAlertAt = Date.now();
           this.playChimeSound();
         }
       );
@@ -147,6 +153,8 @@ export class NotificationService {
   }
 
   async notifyNewOffer(orderNumber?: string) {
+    if (Date.now() - this.lastAlertAt < ALERT_DEDUPE_MS) return;
+    this.lastAlertAt = Date.now();
     const title = 'New Delivery Offer!';
     const body = orderNumber
       ? `Order #${orderNumber}: New delivery offer available. Accept now!`
@@ -161,7 +169,7 @@ export class NotificationService {
               id: Math.floor(Math.random() * 100000),
               title,
               body,
-              channelId: URGENT_CHANNEL,
+              channelId: OFFER_CHANNEL,
               sound: 'order_alert',
               actionTypeId: '',
               extra: null
@@ -181,6 +189,15 @@ export class NotificationService {
   private activeOscillators: any[] = [];
 
   stopSound() {
+    this.stopAudio();
+    // The alarm-channel ringtone keeps playing until its notification is cleared.
+    if (Capacitor.isNativePlatform()) {
+      LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
+      PushNotifications.removeAllDeliveredNotifications().catch(() => {});
+    }
+  }
+
+  private stopAudio() {
     if (this.activeAudio) {
       try {
         this.activeAudio.pause();
@@ -206,7 +223,15 @@ export class NotificationService {
   }
 
   private playChimeSound() {
-    this.stopSound();
+    this.stopAudio();
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([400, 200, 400, 200, 600]);
+      } catch (_) {}
+    }
+    // Native notifications ring through the offer channel; don't overlap it.
+    if (Capacitor.isNativePlatform() && this.notificationsGranted) return;
 
     try {
       const audio = new Audio('assets/sounds/order_alert.mp3');
@@ -224,12 +249,6 @@ export class NotificationService {
       }
     } catch (_) {
       this.playSynthChime();
-    }
-
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      try {
-        navigator.vibrate([400, 200, 400, 200, 600]);
-      } catch (_) {}
     }
   }
 

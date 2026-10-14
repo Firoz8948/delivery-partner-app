@@ -459,29 +459,49 @@
                 <p>Preparing secure payment link…</p>
               </div>
             } @else if (qrCodeUrl()) {
-              <div class="qr-image-wrap">
+              <div class="qr-image-wrap" [class.qr-image-wrap--expired]="qrExpired()">
                 <qrcode
                   [qrdata]="qrCodeUrl()!"
                   [width]="240"
                   [errorCorrectionLevel]="'M'"
                   [margin]="1">
                 </qrcode>
-              </div>
-              <p class="qr-hint">Customer opens phone camera → scans QR → pays with any UPI app (Google Pay, PhonePe, Paytm).</p>
-              <p class="qr-txn">Ref: <code>{{ qrTxnId() }}</code></p>
-
-              <div class="qr-poll-status">
-                @if (qrCheckingStatus()) {
-                  <span class="btn-spinner btn-spinner--dark"></span>
-                  <span>Waiting for payment…</span>
-                } @else {
-                  <span>Awaiting customer payment…</span>
+                @if (qrExpired()) {
+                  <div class="qr-expired-overlay">QR expired</div>
                 }
               </div>
+
+              @if (qrExpired()) {
+                <p class="qr-expiry qr-expiry--expired">This QR has expired. Tap “Refresh QR” for a new one.</p>
+              } @else {
+                <p class="qr-expiry" [class.qr-expiry--soon]="qrSecondsLeft() <= 120">Expires in <strong>{{ qrCountdown() }}</strong></p>
+              }
+
+              <p class="qr-hint">Customer opens phone camera → scans QR → pays with any UPI app (Google Pay, PhonePe, Paytm).</p>
+              <div class="qr-link-row">
+                <span>QR not scanning?</span>
+                <a [href]="qrCodeUrl()!" target="_blank" rel="noopener">Open payment link</a>
+                <button type="button" class="qr-link-copy" (click)="copyQrLink()">{{ qrLinkCopied() ? 'Copied ✓' : 'Copy link' }}</button>
+              </div>
+              <p class="qr-txn">Ref: <code>{{ qrTxnId() }}</code></p>
+
+              @if (!qrExpired()) {
+                <div class="qr-poll-status">
+                  @if (qrCheckingStatus()) {
+                    <span class="btn-spinner btn-spinner--dark"></span>
+                    <span>Waiting for payment…</span>
+                  } @else {
+                    <span>Awaiting customer payment…</span>
+                  }
+                </div>
+              }
             }
 
             @if (qrError()) {
               <div class="qr-error">{{ qrError() }}</div>
+            }
+            @if (!qrLoading() && (qrError() || qrCodeUrl())) {
+              <button type="button" class="qr-refresh-btn" (click)="refreshUpiQr()">↻ Refresh QR</button>
             }
           </div>
 
